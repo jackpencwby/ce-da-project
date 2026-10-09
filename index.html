@@ -1,1329 +1,2081 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
+<meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>KNN Visualizer · ManchesterLiver</title>
-<meta name="description" content="Interactive step-by-step visualizer of the K-Nearest Neighbors (KNN) algorithm — distances, voting, decision boundary and loss.">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23050506'/%3E%3Ccircle cx='10' cy='11' r='4' fill='%233987e5'/%3E%3Crect x='18' y='17' width='7' height='7' rx='1' fill='%23d95926'/%3E%3Cpath d='M9 26l4-7 4 7z' fill='%23199e70'/%3E%3C/svg%3E">
+<title>KNN Visualizer · learning by remembering</title>
+<meta name="description" content="Interactive K-Nearest Neighbors visualizer: step through memorize, distance, sort, vote and evaluate with the real math.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Noto+Sans+Thai:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <style>
+/* ===================== TOKENS ===================== */
 :root{
-  color-scheme: dark;
-  --bg:#050506;
-  --panel:#0d0e11;
-  --panel-2:#131418;
-  --panel-3:#1b1d22;
-  --surface:#0a0b0d;
-  --line:rgba(255,255,255,.08);
-  --line-2:rgba(255,255,255,.15);
-  --ink:#f3f2ef;
-  --ink-2:#c3c2b7;
-  --muted:#8a8984;
-  --accent:#9085e9;
-  --c0:#3987e5; --c1:#d95926; --c2:#199e70;
-  --good:#0ca30c; --warn:#fab219; --bad:#e66767;
-  --radius:14px;
-  --sans:'Inter','Noto Sans Thai',system-ui,-apple-system,'Segoe UI',sans-serif;
-  --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Consolas,monospace;
+  --bg:#07090c; --col:#0e1116; --panel:#141922; --panel2:#10151d; --border:#1f2733;
+  --text:#e6edf3; --muted:#8b98a9; --accent:#7c9cff; --ok:#3ddc97; --bad:#ff6b6b; --warn:#ffc857;
+  --c0:#22d3ee; --c1:#f472b6; --c2:#fbbf24; --c3:#a3e635;
+  --font:Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono:"JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+  --gap:16px; --radius:16px;
 }
 *{box-sizing:border-box}
 html,body{margin:0}
 body{
-  min-height:100vh; display:flex; flex-direction:column;
-  background:var(--bg); color:var(--ink); font:14px/1.5 var(--sans);
-  background-image:
-    radial-gradient(1100px 520px at 0% -12%, rgba(57,135,229,.10), transparent 60%),
-    radial-gradient(900px 480px at 100% -8%, rgba(144,133,233,.09), transparent 60%);
-  -webkit-font-smoothing:antialiased;
+  background:var(--bg); color:var(--text); font:14px/1.5 var(--font);
+  height:100vh; display:grid; grid-template-rows:auto 1fr auto; overflow:hidden;
 }
-@media (min-width:1024px){ body{height:100vh; overflow:hidden} }
-b,strong{font-weight:600}
-code,.mono{font-family:var(--mono)}
-kbd{font:500 11px var(--mono); padding:1px 6px; border-radius:5px; border:1px solid var(--line-2); background:var(--panel-3); color:var(--ink)}
-
-/* ---------- Header ---------- */
-header.top{flex:none; display:flex; align-items:flex-end; justify-content:space-between; gap:14px 28px; flex-wrap:wrap; padding:14px 24px 14px; border-bottom:1px solid var(--line)}
-.eyebrow{font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--muted); font-weight:500}
-.brand h1{margin:4px 0 0; font-size:24px; line-height:1.15; letter-spacing:-.015em; font-weight:700}
-.brand h1 span{color:var(--muted); font-weight:500}
-.brand p{margin:6px 0 0; max-width:620px; color:var(--ink-2); font-size:13px}
-.principles{list-style:none; margin:0; padding:0; display:flex; gap:8px; flex-wrap:wrap}
-.principles li{display:flex; align-items:center; gap:9px; padding:6px 11px 6px 7px; border:1px solid var(--line); border-radius:12px; background:rgba(255,255,255,.02)}
-.principles .pn{width:24px; height:24px; border-radius:50%; display:grid; place-items:center; font:600 12px var(--mono); background:var(--ink); color:#0b0b0c; flex:none}
-.principles b{display:block; font-size:12px}
-.principles code{font-size:11.5px; color:var(--ink-2)}
-
-/* ---------- Workspace ---------- */
-main.workspace{flex:1; min-height:0; display:grid; grid-template-columns:minmax(0,1.06fr) minmax(0,.94fr); gap:20px; padding:20px 24px}
-.col{min-height:0; overflow-y:auto; display:flex; flex-direction:column; gap:20px; padding:2px 10px 12px 2px; scrollbar-gutter:stable; scrollbar-width:thin; scrollbar-color:#2c2e34 transparent}
-.col::-webkit-scrollbar{width:8px}
-.col::-webkit-scrollbar-thumb{background:#2a2c31; border-radius:8px}
-.col::-webkit-scrollbar-thumb:hover{background:#3a3d44}
-@media (max-width:1023px){
-  main.workspace{grid-template-columns:minmax(0,1fr); padding:16px}
-  .col{overflow:visible; padding:0}
-  header.top{padding:16px}
-}
-
-.card{flex:none; background:linear-gradient(180deg,var(--panel-2),var(--panel)); border:1px solid var(--line); border-radius:var(--radius);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.04), 0 24px 48px -24px rgba(0,0,0,.95), 0 2px 10px rgba(0,0,0,.55)}
-.card-head{display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; padding:13px 16px 12px; border-bottom:1px solid var(--line)}
-.card-title{display:flex; align-items:center; gap:10px; font-weight:600; font-size:14.5px; letter-spacing:-.005em}
-.card-title .num{font:600 11px var(--mono); color:var(--muted); border:1px solid var(--line-2); border-radius:6px; padding:1px 6px}
-.card-title small{font-weight:400; color:var(--muted); font-size:12px}
-.card-body{padding:14px 16px 16px}
-.meta{font-size:12px; color:var(--muted)}
-.chips{display:flex; gap:6px; flex-wrap:wrap}
-.chip{font:500 11.5px var(--mono); color:var(--ink-2); border:1px solid var(--line); background:var(--surface); border-radius:999px; padding:2px 9px; white-space:nowrap}
-.chip b{color:var(--ink)}
-.pill{display:inline-flex; align-items:center; gap:6px; font:500 12px var(--sans); padding:3px 10px; border-radius:999px; border:1px solid var(--line-2); color:var(--ink-2)}
-.pill::before{content:""; width:7px; height:7px; border-radius:50%; background:var(--muted)}
-.pill.run{color:var(--ink)} .pill.run::before{background:var(--accent); box-shadow:0 0 0 3px rgba(144,133,233,.25); animation:blink 1s infinite}
-.pill.done{color:var(--ink); border-color:rgba(12,163,12,.5)} .pill.done::before{background:var(--good)}
-@keyframes blink{50%{opacity:.35}}
-
-/* ---------- Controls ---------- */
-.btn{appearance:none; display:inline-flex; align-items:center; justify-content:center; gap:7px; border:1px solid var(--line-2); background:var(--panel-3); color:var(--ink);
-  font:500 13px var(--sans); padding:8px 13px; border-radius:9px; cursor:pointer; transition:background .15s,border-color .15s,transform .05s; white-space:nowrap}
-.btn:hover{background:#23252b; border-color:rgba(255,255,255,.28)}
-.btn:active{transform:translateY(1px)}
-.btn.primary{background:var(--ink); color:#0b0b0c; border-color:var(--ink)}
-.btn.primary:hover{background:#fff}
-.btn.ghost{background:transparent}
-.btn:disabled{opacity:.38; cursor:not-allowed; transform:none}
-.btn svg{width:14px; height:14px; flex:none}
+button,input,select{font:inherit;color:inherit}
 :focus-visible{outline:2px solid var(--accent); outline-offset:2px}
-.seg{display:inline-flex; flex-wrap:wrap; background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:2px; gap:2px}
-.seg button{border:0; background:transparent; color:var(--ink-2); font:500 12.5px var(--sans); padding:5px 10px; border-radius:8px; cursor:pointer; display:inline-flex; align-items:center; gap:6px}
-.seg button:hover{color:var(--ink)}
-.seg button[aria-pressed="true"]{background:var(--panel-3); color:var(--ink); box-shadow:0 0 0 1px var(--line-2)}
-select{appearance:none; background:var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23c3c2b7' fill='none' stroke-width='1.5'/%3E%3C/svg%3E") no-repeat right 10px center;
-  color:var(--ink); border:1px solid var(--line); border-radius:9px; padding:6px 30px 6px 10px; font:500 13px var(--sans); cursor:pointer}
-input[type=range]{-webkit-appearance:none; appearance:none; width:100%; height:4px; margin:8px 0; border-radius:4px; cursor:pointer;
-  background:linear-gradient(to right,var(--ink-2) var(--fill,50%),rgba(255,255,255,.12) var(--fill,50%))}
-input[type=range]::-webkit-slider-thumb{-webkit-appearance:none; width:15px; height:15px; border-radius:50%; background:var(--ink); border:3px solid #0b0b0c; box-shadow:0 0 0 1px rgba(255,255,255,.35)}
-input[type=range]::-moz-range-thumb{width:11px; height:11px; border-radius:50%; background:var(--ink); border:3px solid #0b0b0c; box-shadow:0 0 0 1px rgba(255,255,255,.35)}
-.lbl{font-size:11.5px; color:var(--muted); display:flex; justify-content:space-between; gap:8px}
-.lbl b,.lbl output{color:var(--ink); font:500 11.5px var(--mono)}
-.hint{font-size:12px; color:var(--muted); line-height:1.45}
+[hidden]{display:none !important}
+.muted{color:var(--muted)}
+.mono{font-family:var(--mono)}
 
-.toolbar{display:flex; flex-wrap:wrap; align-items:flex-end; gap:12px 14px; margin-bottom:12px}
-.toolbar .ctl{display:flex; flex-direction:column; gap:4px; min-width:0}
-.toolbar .grow{flex:1 1 120px}
-.toolbar .end{margin-left:auto; display:flex; gap:8px}
-.toolbar.tools{align-items:center; padding:8px; border:1px solid var(--line); border-radius:11px; background:rgba(255,255,255,.015)}
-.class-pick{display:flex; gap:4px}
-.class-pick button{display:inline-flex; align-items:center; gap:6px; border:1px solid var(--line); background:var(--surface); color:var(--ink-2); border-radius:8px; padding:4px 10px; font:500 12.5px var(--sans); cursor:pointer}
-.class-pick button[aria-pressed="true"]{color:var(--ink); border-color:rgba(255,255,255,.55); box-shadow:inset 0 0 0 1px rgba(255,255,255,.25)}
-.class-pick button[hidden]{display:none}
+/* ===================== LAYOUT ===================== */
+.top{
+  padding:14px 24px 12px; border-bottom:1px solid var(--border);
+  background:linear-gradient(120deg,#0b1020 0%,#0a0d13 55%,#07090c 100%);
+}
+.kicker{font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--accent); font-weight:600}
+.top h1{margin:2px 0 4px; font-size:22px; line-height:1.25; font-weight:700}
+.top h1 .tag{color:var(--muted); font-weight:500}
+.principle{margin:0 0 8px; color:var(--muted); max-width:920px}
+.how{display:flex; flex-wrap:wrap; gap:8px; align-items:center}
+.hchip{background:#121a2b; border:1px solid #223055; color:#bcd0ff; padding:3px 12px; border-radius:999px; font-size:12.5px; font-weight:500}
+.how .arrow{color:var(--muted)}
 
-.canvas-wrap{position:relative; width:100%; aspect-ratio:4/3; border-radius:11px; overflow:hidden; border:1px solid var(--line); background:var(--surface)}
-#board{position:absolute; inset:0; width:100%; height:100%; display:block; touch-action:none; cursor:crosshair}
-#board.t-erase{cursor:not-allowed} #board.t-probe{cursor:move}
-.tip{position:absolute; pointer-events:none; z-index:3; min-width:150px; background:rgba(14,15,18,.96); border:1px solid var(--line-2); border-radius:9px; padding:8px 10px; font-size:12px; box-shadow:0 10px 24px rgba(0,0,0,.6); display:none}
-.tip .r{display:flex; justify-content:space-between; gap:14px; color:var(--muted)} .tip .r span{color:var(--ink); font-family:var(--mono)}
-.legend{display:flex; flex-wrap:wrap; gap:6px 16px; margin-top:10px; font-size:12px; color:var(--ink-2)}
-.legend span{display:inline-flex; align-items:center; gap:6px}
-.legend svg{flex:none}
+.cols{
+  display:grid; grid-template-columns:minmax(0,52fr) minmax(0,48fr);
+  gap:var(--gap); padding:var(--gap); min-height:0;
+}
+.col{
+  background:var(--col); border:1px solid var(--border); border-radius:var(--radius);
+  box-shadow:0 10px 30px rgba(0,0,0,.45); padding:14px; overflow-y:auto; min-height:0;
+  display:flex; flex-direction:column; gap:14px;
+  scrollbar-width:thin; scrollbar-color:var(--accent) #0a0d12;
+}
+.col::-webkit-scrollbar{width:9px}
+.col::-webkit-scrollbar-track{background:#0a0d12; border-radius:8px}
+.col::-webkit-scrollbar-thumb{background:var(--accent); border-radius:8px; border:2px solid #0a0d12}
 
-.controls{display:grid; grid-template-columns:auto auto 1fr 1.6fr; gap:8px}
-@media (max-width:560px){ .controls{grid-template-columns:1fr 1fr} }
-.speed{display:flex; align-items:center; gap:12px; margin:12px 0 4px}
-.speed .lbl{white-space:nowrap}
-.hp{display:grid; grid-template-columns:1fr 1fr; gap:16px 22px; margin-top:16px; padding-top:16px; border-top:1px solid var(--line)}
-@media (max-width:620px){ .hp{grid-template-columns:1fr} }
-.field{display:flex; flex-direction:column; gap:6px; min-width:0}
-.field .ft{display:flex; justify-content:space-between; align-items:baseline; gap:8px; font-weight:500; font-size:13px}
-.field .ft output{font:600 13px var(--mono)}
-.field .formula-mini{font:12px var(--mono); color:var(--ink-2)}
-.toggles{display:flex; flex-wrap:wrap; gap:10px 18px; margin-top:16px; padding-top:14px; border-top:1px solid var(--line)}
-.switch{display:inline-flex; align-items:center; gap:8px; font-size:12.5px; color:var(--ink-2); cursor:pointer; user-select:none}
-.switch input{position:absolute; opacity:0; width:1px; height:1px}
-.switch .tr{width:30px; height:17px; border-radius:999px; background:#2a2c31; position:relative; transition:background .15s; flex:none}
-.switch .tr::after{content:""; position:absolute; top:2px; left:2px; width:13px; height:13px; border-radius:50%; background:#8a8984; transition:transform .15s, background .15s}
-.switch input:checked + .tr{background:#e9e8e4} .switch input:checked + .tr::after{transform:translateX(13px); background:#0b0b0c}
-.switch input:focus-visible + .tr{outline:2px solid var(--accent); outline-offset:2px}
-.keys{margin-top:12px; font-size:12px; color:var(--muted)}
+footer{
+  border-top:1px solid var(--border); padding:12px 24px; color:var(--muted); font-size:12.5px;
+  display:flex; flex-wrap:wrap; gap:8px 32px; justify-content:space-between; align-items:center; min-height:64px;
+}
+footer b{color:var(--text)}
+footer ul{list-style:none; margin:0; padding:0; display:grid; grid-template-columns:repeat(2,auto); gap:0 24px}
+footer .id{font-family:var(--mono); color:#aab6c8}
 
-/* ---------- Model state ---------- */
-.explain{border:1px solid var(--line); border-left:3px solid var(--accent); background:rgba(144,133,233,.06); border-radius:10px; padding:10px 12px; font-size:13px; color:var(--ink-2)}
-.explain b{color:var(--ink)}
-.explain .delta{display:block; margin-top:6px; font:12px var(--mono); color:var(--ink-2)}
-.explain .conv{display:block; margin-top:6px; color:var(--ink)}
-.sub{margin-top:18px}
-.sub > h3{margin:0 0 4px; font-size:13px; font-weight:600; display:flex; align-items:center; gap:8px; flex-wrap:wrap}
-.sub > h3 .tagline{font:500 11px var(--mono); color:var(--muted)}
-.sub > p.hint{margin:0 0 8px}
-.ss{display:grid; grid-template-columns:22px minmax(0,1fr); gap:10px; margin-top:12px}
-.ss .n{width:22px; height:22px; border-radius:50%; border:1px solid var(--line-2); display:grid; place-items:center; font:600 11px var(--mono); color:var(--ink-2)}
-.ss h4{margin:1px 0 6px; font-size:12.5px; font-weight:600}
-.formula{font:12.5px/1.7 var(--mono); background:var(--surface); border:1px solid var(--line); border-radius:9px; padding:8px 11px; overflow-x:auto; white-space:nowrap; color:var(--ink)}
-.formula + .formula{margin-top:6px}
-.formula .c{color:var(--muted)}
-.scrollbox{max-height:210px; overflow:auto; border:1px solid var(--line); border-radius:9px; margin-top:6px; scrollbar-width:thin; scrollbar-color:#2c2e34 transparent}
-table.tbl{width:100%; border-collapse:collapse; font:12px var(--mono); font-variant-numeric:tabular-nums}
-.tbl th{position:sticky; top:0; z-index:1; background:#16171b; text-align:left; color:var(--muted); font-weight:500; padding:6px 9px; border-bottom:1px solid var(--line); white-space:nowrap}
-.tbl td{padding:4px 9px; border-bottom:1px solid rgba(255,255,255,.04); white-space:nowrap; color:var(--ink-2)}
-.tbl td b{color:var(--ink)}
-.tbl tr.nb td{background:rgba(255,255,255,.07); color:var(--ink)}
-.tbl tr.new td{background:rgba(144,133,233,.14); color:var(--ink)}
-.tbl tr.more td{color:var(--muted); font-style:italic; text-align:center}
-.tbl td.calc{color:var(--muted)}
-.tag{font:500 10.5px var(--sans); color:#0b0b0c; background:var(--ink); border-radius:4px; padding:1px 6px}
-.sw{display:inline-block; width:9px; height:9px; margin-right:5px; vertical-align:0}
-.sw0{background:var(--c0); border-radius:50%}
-.sw1{background:var(--c1); border-radius:1.5px}
-.sw2{background:var(--c2); clip-path:polygon(50% 0,100% 100%,0 100%)}
-.pid,.cl{white-space:nowrap}
-.vrow{display:grid; grid-template-columns:70px minmax(0,1fr) 52px; align-items:center; gap:10px; margin-top:6px; font-size:12.5px}
-.vbar{height:10px; background:rgba(255,255,255,.06); border-radius:3px; overflow:hidden}
-.vbar i{display:block; height:100%; border-radius:0 3px 3px 0}
-.vv{font:600 12px var(--mono); text-align:right}
-.vcalc{font:11.5px var(--mono); color:var(--muted); margin:2px 0 0 80px; overflow-x:auto; white-space:nowrap}
-.predict{display:flex; align-items:center; gap:10px; flex-wrap:wrap; font:13px var(--mono)}
-.predict .big{font:600 14px var(--sans); padding:4px 10px; border-radius:8px; border:1px solid var(--line-2); background:var(--surface)}
-.muted-p{color:var(--muted); font-size:12.5px; margin:6px 0 0}
-.good{color:var(--good)} .bad{color:var(--bad)}
-.worst{display:flex; flex-wrap:wrap; gap:6px; margin-top:8px}
-.worst span{font:11.5px var(--mono); border:1px solid var(--line); border-radius:7px; padding:2px 8px; color:var(--ink-2); background:var(--surface)}
+/* ===================== PANELS ===================== */
+.panel{background:var(--panel); border:1px solid var(--border); border-radius:14px; flex:none}
+.ph{display:flex; align-items:center; gap:10px; padding:10px 14px; border-bottom:1px solid var(--border); cursor:pointer; user-select:none}
+.ph .num{font-family:var(--mono); color:var(--accent); font-weight:600; font-size:13px}
+.ph h2{margin:0; font-size:15px; font-weight:600}
+.ph .sub{color:var(--muted); font-size:12.5px}
+.ph .spacer{flex:1}
+.ph .caret{background:none; border:0; color:var(--muted); font-size:18px; line-height:1; cursor:pointer; transition:transform .2s}
+.panel.collapsed .caret{transform:rotate(-90deg)}
+.panel.collapsed .pb{display:none}
+.panel.collapsed .ph{border-bottom:0}
+.pb{padding:14px; display:flex; flex-direction:column; gap:12px}
 
-/* ---------- Loss chart ---------- */
-.stats{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; margin-bottom:12px}
-@media (max-width:560px){ .stats{grid-template-columns:repeat(2,minmax(0,1fr))} }
-.stat{background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:9px 12px; min-width:0}
-.stat .k{font-size:10.5px; color:var(--muted); text-transform:uppercase; letter-spacing:.09em}
-.stat .v{font-size:20px; font-weight:600; letter-spacing:-.01em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
-.stat .s{font:11px var(--mono); color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
-#chart{position:relative; width:100%; height:230px; touch-action:pan-y}
-#chart svg{display:block; overflow:visible}
-#chart text{font:11px var(--sans); fill:var(--muted); font-variant-numeric:tabular-nums}
-#chart .grid{stroke:#25262b; stroke-width:1}
-#chart .base{stroke:#3a3b40; stroke-width:1}
-#chart .line{fill:none; stroke:var(--accent); stroke-width:2; stroke-linejoin:round; stroke-linecap:round}
-#chart .ref{stroke:#5b5a56; stroke-dasharray:4 4}
-#chart .conv{stroke:var(--good); stroke-dasharray:3 3}
-#chart text.endlab{fill:var(--ink); font-weight:600; font-family:var(--mono)}
-#chart text.reflab{fill:var(--muted); font-size:10.5px}
-.ctip{position:absolute; top:10px; pointer-events:none; display:none; min-width:140px; background:rgba(14,15,18,.96); border:1px solid var(--line-2); border-radius:9px; padding:8px 10px; font-size:12px; box-shadow:0 10px 24px rgba(0,0,0,.6)}
-.ctip .r{display:flex; justify-content:space-between; gap:14px; color:var(--muted)} .ctip .r span{color:var(--ink); font-family:var(--mono)}
-details.dt{margin-top:12px}
-details.dt summary{cursor:pointer; color:var(--ink-2); font-size:12.5px}
-.caption{font-size:12px; color:var(--muted); margin:10px 0 0}
+.chip{display:inline-flex; align-items:center; gap:6px; background:#0b0f16; border:1px solid var(--border); border-radius:999px; padding:2px 10px; font-size:12px; color:var(--muted); white-space:nowrap}
+.chip b{color:var(--text); font-weight:600}
+.chip.ok{border-color:#245a46; color:var(--ok)}
+.chip.warn{border-color:#5a4a1f; color:var(--warn)}
+.chip.bad{border-color:#5a2a2a; color:var(--bad)}
 
-/* ---------- Footer ---------- */
-footer.bottom{flex:none; border-top:1px solid var(--line); background:rgba(8,8,10,.85); padding:14px 24px; display:flex; align-items:center; justify-content:space-between; gap:12px 28px; flex-wrap:wrap}
-.team-name{font-weight:700; font-size:15px; letter-spacing:-.01em}
-.team-name small{display:block; font-weight:400; font-size:11px; color:var(--muted); letter-spacing:.14em; text-transform:uppercase}
-.members{display:grid; grid-template-columns:repeat(3,minmax(0,auto)); gap:3px 22px; font-size:12.5px; color:var(--ink-2)}
-.members .id{font:12px var(--mono); color:var(--muted); margin-right:8px}
-@media (max-width:760px){ .members{grid-template-columns:repeat(2,minmax(0,auto))} }
-@media (max-width:460px){ .members{grid-template-columns:1fr} }
-.inst{text-align:right; font-size:12.5px; color:var(--ink-2)}
-.inst b{display:block; color:var(--ink); font-size:14px}
-@media (max-width:760px){ footer.bottom{padding:14px 16px} .inst{text-align:left} }
+/* ===================== CONTROLS ===================== */
+.btn{background:#1a2230; border:1px solid #2a3547; border-radius:9px; padding:6px 12px; cursor:pointer; font-weight:500; font-size:13px; transition:background .15s,border-color .15s}
+.btn:hover:not(:disabled){background:#222c3f; border-color:#3a4a66}
+.btn:disabled{opacity:.4; cursor:not-allowed}
+.btn.primary{background:var(--accent); border-color:var(--accent); color:#0a1020; font-weight:600}
+.btn.primary:hover:not(:disabled){background:#9ab2ff}
+.btn.ghost{background:transparent}
+.btn.sm{padding:3px 9px; font-size:12px}
 
-.toast{position:fixed; right:20px; bottom:20px; z-index:20; background:var(--ink); color:#0b0b0c; font:500 13px var(--sans); padding:10px 14px; border-radius:10px; box-shadow:0 12px 30px rgba(0,0,0,.6); opacity:0; transform:translateY(8px); transition:opacity .2s, transform .2s; pointer-events:none; max-width:calc(100vw - 40px)}
-.toast.show{opacity:1; transform:none}
+.seg{display:inline-flex; background:#0b0f16; border:1px solid var(--border); border-radius:9px; padding:2px; gap:2px; flex-wrap:wrap}
+.seg button{background:none; border:0; border-radius:7px; padding:4px 10px; cursor:pointer; color:var(--muted); font-size:12.5px; font-weight:500}
+.seg button:hover{color:var(--text)}
+.seg button.on{background:#222c44; color:var(--text); box-shadow:inset 0 0 0 1px #34456b}
+.seg button[data-cls].on{color:#07090c; font-weight:700}
+.seg button:disabled{opacity:.35; cursor:not-allowed}
+
+.row{display:grid; grid-template-columns:150px 1fr 54px; align-items:center; gap:10px; font-size:13px}
+.row.flex{grid-template-columns:150px 1fr}
+.row .lab{color:var(--muted); display:flex; align-items:center; gap:6px}
+.row b.val{text-align:right; font-family:var(--mono); font-size:13px}
+.row.disabled{opacity:.45}
+.row>*{min-width:0}
+.row.flex select{width:100%}
+.col{min-width:0}
+input[type=range]{width:100%; accent-color:var(--accent)}
+input[type=number], select{background:#0b0f16; border:1px solid var(--border); border-radius:8px; padding:4px 8px; max-width:100%}
+input[type=number]{width:90px}
+input[type=checkbox]{accent-color:var(--accent)}
+.checks{display:flex; flex-wrap:wrap; gap:6px 16px; font-size:13px}
+.checks label{display:flex; align-items:center; gap:6px; cursor:pointer}
+.toolbar{display:flex; flex-wrap:wrap; gap:8px 12px; align-items:center}
+.hint{font-size:12px; color:var(--muted)}
+.grp{border:1px solid var(--border); border-radius:10px; background:var(--panel2)}
+.grp>summary{cursor:pointer; padding:7px 12px; font-weight:600; font-size:13px; color:#c4cee0}
+.grp>div{padding:4px 12px 12px; display:flex; flex-direction:column; gap:10px}
+.btnrow{display:flex; flex-wrap:wrap; gap:8px; align-items:center}
+.formula{font-family:var(--mono); font-size:12.5px; background:#0b0f16; border:1px solid var(--border); border-radius:8px; padding:6px 10px; color:#cfe0ff}
+
+.i{display:inline-grid; place-items:center; width:15px; height:15px; border-radius:50%; border:1px solid var(--muted); color:var(--muted); font-size:10px; font-style:normal; cursor:help; flex:none}
+.i:hover,.i:focus{color:var(--accent); border-color:var(--accent)}
+#gtip{position:fixed; z-index:200; max-width:260px; background:#0a0d13; border:1px solid #2a3547; border-radius:8px; padding:8px 10px; font-size:12px; line-height:1.45; box-shadow:0 8px 24px rgba(0,0,0,.6); pointer-events:none; opacity:0; transition:opacity .12s}
+#gtip.show{opacity:1}
+
+/* ===================== CANVAS ===================== */
+.cvwrap{position:relative; width:100%; max-width:600px; margin:0 auto; line-height:0}
+.cvwrap canvas{display:block; border-radius:10px; background:#0a0d13; border:1px solid var(--border); touch-action:none}
+#cv{cursor:crosshair}
+.floattip{position:absolute; pointer-events:none; background:#0a0d13ee; border:1px solid #2a3547; border-radius:7px; padding:3px 8px; font-size:12px; line-height:1.4; font-family:var(--mono); white-space:nowrap; z-index:5; display:none}
+.probecard{position:absolute; z-index:6; background:#0a0d13f2; border:1px solid #3a4a66; border-radius:10px; padding:8px 10px; font-size:12px; line-height:1.45; min-width:150px; pointer-events:none}
+.probecard .pc-t{font-weight:700; margin-bottom:3px}
+.probecard .pc-r{display:flex; align-items:center; gap:6px; font-family:var(--mono)}
+.probecard .pc-bar{height:6px; border-radius:3px; flex:none}
+.legend{display:flex; flex-wrap:wrap; gap:6px 16px; font-size:12px; color:var(--muted); justify-content:center}
+.legend i{display:inline-block; vertical-align:middle; margin-right:5px}
+.lg-dim{width:10px;height:10px;border-radius:50%;background:#22d3ee4d;border:1px solid #8b98a9}
+.lg-bright{width:10px;height:10px;border-radius:50%;background:#22d3ee;border:1px solid #fff}
+.lg-val{width:9px;height:9px;border:2px solid #22d3ee;transform:rotate(45deg)}
+.lg-probe{width:10px;height:10px;border-radius:50%;border:2px solid #fff;background:transparent}
+
+/* ===================== MODEL STATE ===================== */
+.stepper{display:flex; flex-wrap:wrap; gap:6px}
+.stepper .st{background:#0b0f16; border:1px solid var(--border); border-radius:9px; padding:4px 10px; font-size:12.5px; color:var(--muted); display:flex; gap:6px; align-items:center}
+.stepper .st .n{font-family:var(--mono); color:var(--accent)}
+.stepper .st.done{color:#bfe9d6; border-color:#1f4d3c}
+.stepper .st.done .n::after{content:" ✓"; color:var(--ok)}
+.stepper .st.cur{background:#1b2744; border-color:var(--accent); color:var(--text); box-shadow:0 0 0 1px #7c9cff55}
+.statusline{font-size:12.5px; color:var(--muted); font-family:var(--mono)}
+.note{background:#101a2a; border:1px solid #223055; border-left:3px solid var(--accent); border-radius:8px; padding:8px 12px; font-size:13px; color:#cfdcf5}
+.banner{border-radius:10px; padding:10px 14px; border:1px solid #245a46; background:#0f2a21; color:#c8f5e2; font-size:13.5px}
+.banner.warn{border-color:#5a4a1f; background:#2a2310; color:#ffe9b0}
+.explain{background:var(--panel2); border:1px solid var(--border); border-radius:10px; padding:12px 14px; font-size:13.5px}
+.explain h3{margin:0 0 6px; font-size:13px; text-transform:uppercase; letter-spacing:.08em; color:var(--accent)}
+.explain p{margin:0 0 8px}
+.explain .fx{font-family:var(--mono); font-size:12.5px; background:#0b0f16; border:1px solid var(--border); border-radius:8px; padding:8px 10px; margin:6px 0; white-space:pre-wrap; word-break:break-word; color:#d7e4ff; line-height:1.6}
+.explain .why{color:var(--muted); font-size:12.5px}
+h4.sec{margin:2px 0 6px; font-size:13px; font-weight:600; color:#c4cee0}
+.tablewrap{max-height:260px; overflow:auto; border:1px solid var(--border); border-radius:10px; background:var(--panel2); scrollbar-width:thin; scrollbar-color:#34456b #0a0d12}
+table.mem{width:100%; border-collapse:collapse; font-family:var(--mono); font-size:12.5px}
+table.mem th{position:sticky; top:0; background:#182030; text-align:right; padding:5px 10px; font-weight:600; color:#aab6c8; z-index:1}
+table.mem th:first-child,table.mem td:first-child{text-align:left}
+table.mem td{padding:3px 10px; text-align:right; border-top:1px solid #1a2230}
+table.mem td.cls{text-align:center}
+table.mem tr{border-left:3px solid transparent}
+table.mem tr.nb{border-left-color:var(--rc, var(--accent)); background:#ffffff08}
+table.mem tr.nb td.rank{font-weight:700; color:var(--text)}
+table.mem tr.hl{background:#7c9cff22}
+table.mem tr.flash{animation:flash 1.1s ease-out}
+@keyframes flash{from{background:#7c9cff55}to{background:transparent}}
+.cl{display:inline-block; min-width:20px; text-align:center; border-radius:5px; padding:0 5px; color:#07090c; font-weight:700; font-size:12px}
+.vec{font-family:var(--mono); font-size:12.5px; background:#0b0f16; border:1px solid var(--border); border-radius:8px; padding:8px 10px; overflow-x:auto; white-space:nowrap}
+.vec .k{color:var(--text); font-weight:700; background:#7c9cff22; border-radius:4px; padding:0 3px}
+.vec .cut{color:var(--accent); font-weight:700}
+.bars{display:flex; flex-direction:column; gap:5px}
+.bar{display:grid; grid-template-columns:24px 1fr 120px; gap:8px; align-items:center; font-family:var(--mono); font-size:12.5px}
+.bar .track{height:14px; background:#0b0f16; border-radius:5px; border:1px solid var(--border); overflow:hidden}
+.bar .fill{height:100%; border-radius:4px; transition:width .3s}
+.bar.win .track{outline:2px solid var(--text); outline-offset:1px}
+table.conf{border-collapse:collapse; font-family:var(--mono); font-size:13px; margin:0 auto}
+table.conf th{padding:4px 10px; color:var(--muted); font-weight:600}
+table.conf td{width:52px; height:38px; text-align:center; border:1px solid var(--border)}
+.two{display:grid; grid-template-columns:1fr 1fr; gap:12px}
+.metrics{display:flex; flex-wrap:wrap; gap:6px}
+.lossleg{display:flex; flex-wrap:wrap; gap:6px 14px; font-size:12px; color:var(--muted)}
+.lossleg button{background:none; border:0; cursor:pointer; color:inherit; display:flex; align-items:center; gap:6px; padding:0}
+.lossleg button.off{opacity:.4; text-decoration:line-through}
+.lossleg i{display:inline-block; width:18px; height:0; border-top:3px solid var(--accent)}
+.lossleg i.err{border-top:2px dashed var(--warn)}
+.lossleg i.gh{border-top:2px dashed #55627a}
+.caption{font-size:12.5px; color:var(--muted); margin:0}
+#lossCv{width:100%; cursor:crosshair}
+
+#toasts{position:fixed; left:50%; bottom:22px; transform:translateX(-50%); display:flex; flex-direction:column; gap:8px; align-items:center; z-index:300; pointer-events:none}
+.toast{background:#1b2436; border:1px solid #34456b; border-radius:10px; padding:8px 16px; font-size:13px; box-shadow:0 10px 30px rgba(0,0,0,.6); animation:tin .2s ease-out}
+@keyframes tin{from{opacity:0; transform:translateY(8px)}to{opacity:1; transform:none}}
+.pop{position:relative}
+.helppop{position:absolute; right:0; top:34px; z-index:20; background:#0a0d13; border:1px solid #2a3547; border-radius:10px; padding:10px 14px; font-size:12.5px; box-shadow:0 10px 30px rgba(0,0,0,.6); display:none; min-width:240px}
+.helppop.show{display:block}
+.helppop kbd{font-family:var(--mono); background:#1a2230; border:1px solid #2a3547; border-radius:5px; padding:0 6px; margin-right:6px}
+.helppop div{padding:2px 0}
+
+/* ===================== RESPONSIVE ===================== */
+@media (max-width:1023px){
+  body{height:auto; display:block; overflow:auto}
+  .cols{display:flex; flex-direction:column}
+  .col{overflow:visible}
+  .row{grid-template-columns:120px 1fr 48px}
+}
+@media (max-width:560px){
+  .ph .sub{display:none}
+  .ph{gap:8px; padding:10px}
+  .pb{padding:10px}
+  .col{padding:10px}
+  .two{grid-template-columns:1fr}
+  footer ul{grid-template-columns:1fr}
+  .top h1{font-size:18px}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none !important; transition:none !important}
+}
 </style>
 </head>
 <body>
 
 <header class="top">
-  <div class="brand">
-    <div class="eyebrow">Interactive Algorithm Visualizer · Supervised Learning</div>
-    <h1>K-Nearest Neighbors <span>(KNN)</span></h1>
-    <p>To classify a new point, KNN measures its distance to every stored example, picks the <b>K</b> closest ones and lets them <b>vote</b>. It has no weights to optimize — “training” simply means <b>memorizing examples</b>. Step through the learning process and watch the decision boundary take shape.</p>
-  </div>
-  <ol class="principles">
-    <li><span class="pn">1</span><span><b>Measure distance</b><code>d(q,x) = √Σ (qⱼ − xⱼ)²</code></span></li>
-    <li><span class="pn">2</span><span><b>Pick K nearest</b><code>N<sub>K</sub>(q) = K smallest d</code></span></li>
-    <li><span class="pn">3</span><span><b>Majority vote</b><code>ŷ = argmax<sub>c</sub> #votes(c)</code></span></li>
-  </ol>
+  <div class="kicker">Interactive ML Demo</div>
+  <h1>K-Nearest Neighbors (KNN) Visualizer <span class="tag">· learning by remembering</span></h1>
+  <p class="principle">KNN classifies a new point by looking at the K closest points it has stored and letting them vote. There are no weights to train: the stored data itself is the model.</p>
+  <div class="how"><span class="hchip">① Measure distance</span><span class="arrow">→</span><span class="hchip">② Pick the K nearest</span><span class="arrow">→</span><span class="hchip">③ Majority vote</span></div>
 </header>
 
-<main class="workspace">
-  <!-- ================= LEFT ================= -->
-  <div class="col" id="col-left">
+<main class="cols">
+  <section class="col" id="colLeft" aria-label="Data and controls">
 
-    <section class="card" aria-labelledby="t-data">
-      <div class="card-head">
-        <div class="card-title" id="t-data"><span class="num">01</span>Data Canvas <small>feature space x₁ × x₂</small></div>
-        <div class="meta" id="data-meta"></div>
+    <!-- ========== 01 DATA CANVAS ========== -->
+    <section class="panel" id="panel1">
+      <div class="ph" role="button" tabindex="0" aria-expanded="true">
+        <span class="num">01</span><h2>Data Canvas</h2><span class="sub">— add, erase &amp; generate</span>
+        <span class="spacer"></span><span class="chip" id="chipPoints">0 points</span>
+        <button class="caret" aria-label="Collapse panel" tabindex="-1">⌄</button>
       </div>
-      <div class="card-body">
+      <div class="pb">
         <div class="toolbar">
-          <div class="ctl">
-            <span class="lbl">Dataset</span>
-            <select id="dataset" aria-label="Dataset shape">
-              <option value="blobs">Gaussian blobs</option>
-              <option value="rings">Concentric rings</option>
-              <option value="spiral">Spirals</option>
-              <option value="checker">Checkerboard</option>
-            </select>
+          <div class="seg" id="toolSeg" role="group" aria-label="Tool">
+            <button data-tool="add" class="on" title="Add points (A)">✚ Add</button>
+            <button data-tool="erase" title="Erase points (X)">⌫ Erase</button>
+            <button data-tool="probe" title="Probe a query point (P)">◎ Probe</button>
           </div>
-          <div class="ctl">
-            <span class="lbl">Classes</span>
-            <div class="seg" id="seg-C" role="group" aria-label="Number of classes"><button data-v="2">2</button><button data-v="3">3</button></div>
-          </div>
-          <div class="ctl grow">
-            <label class="lbl" for="perClass">Points / class <output id="perClass-v"></output></label>
-            <input type="range" id="perClass" min="5" max="60" step="1">
-          </div>
-          <div class="ctl grow">
-            <label class="lbl" for="noise">Noise <output id="noise-v"></output></label>
-            <input type="range" id="noise" min="0" max="1" step="0.05">
-          </div>
-          <div class="end">
-            <button class="btn" id="btn-random" title="Generate a new random dataset">
-              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2.5"/><circle cx="5.5" cy="5.5" r=".9" fill="currentColor"/><circle cx="10.5" cy="10.5" r=".9" fill="currentColor"/><circle cx="8" cy="8" r=".9" fill="currentColor"/></svg>Randomize</button>
-            <button class="btn ghost" id="btn-clear" title="Remove all points">Clear</button>
-          </div>
-        </div>
-
-        <div class="toolbar tools">
-          <div class="seg" id="seg-tool" role="group" aria-label="Canvas tool">
-            <button data-v="add"><svg width="12" height="12" viewBox="0 0 12 12" stroke="currentColor" stroke-width="1.6"><path d="M6 1v10M1 6h10"/></svg>Add point</button>
-            <button data-v="erase"><svg width="12" height="12" viewBox="0 0 12 12" stroke="currentColor" stroke-width="1.6"><path d="M2 2l8 8M10 2l-8 8"/></svg>Erase</button>
-            <button data-v="probe"><svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M6 .5l1.6 3.6 3.9.4-2.9 2.6.8 3.9L6 9 2.6 11l.8-3.9L.5 4.5l3.9-.4z"/></svg>Move query</button>
-          </div>
-          <div class="class-pick" id="class-pick" role="group" aria-label="Class for new points">
-            <button data-c="0"><i class="sw sw0"></i>Class A</button>
-            <button data-c="1"><i class="sw sw1"></i>Class B</button>
-            <button data-c="2"><i class="sw sw2"></i>Class C</button>
-          </div>
-          <span class="hint">Shift-click / right-click erases · Alt-click or drag ★ moves the query</span>
-        </div>
-
-        <div class="canvas-wrap" id="board-wrap">
-          <canvas id="board" aria-label="Data canvas: click to add points"></canvas>
-          <div class="tip" id="board-tip"></div>
-        </div>
-
-        <div class="legend" id="legend">
-          <span><svg width="12" height="12"><circle cx="6" cy="6" r="5" fill="#c3c2b7"/></svg>filled = stored in memory</span>
-          <span><svg width="12" height="12"><circle cx="6" cy="6" r="4.5" fill="none" stroke="#c3c2b7" stroke-width="1.6"/></svg>hollow = not memorized yet</span>
-          <span><svg width="16" height="16"><circle cx="8" cy="8" r="6.5" fill="none" stroke="#fab219" stroke-width="1.4" stroke-dasharray="2.5 2.5"/></svg>misclassified (leave-one-out)</span>
-          <span><svg width="14" height="14" viewBox="0 0 12 12"><path d="M6 .5l1.6 3.6 3.9.4-2.9 2.6.8 3.9L6 9 2.6 11l.8-3.9L.5 4.5l3.9-.4z" fill="#fff"/></svg>query q + its K neighbors</span>
-          <span><svg width="18" height="10"><path d="M1 5h16" stroke="#fff" stroke-width="1.6"/></svg>decision boundary (tint = confidence)</span>
-        </div>
-      </div>
-    </section>
-
-    <section class="card" aria-labelledby="t-ctrl">
-      <div class="card-head">
-        <div class="card-title" id="t-ctrl"><span class="num">02</span>Hyperparameters &amp; Controls</div>
-        <span class="pill" id="status-pill">Idle</span>
-      </div>
-      <div class="card-body">
-        <div class="controls">
-          <button class="btn" id="btn-reset" title="Clear memory (keep data)">
-            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2.8 8.5A5.3 5.3 0 1 0 4.4 4"/><path d="M4.2 1.4v2.9h2.9"/></svg>Reset</button>
-          <button class="btn" id="btn-back" title="Undo last step (←)">
-            <svg viewBox="0 0 16 16" fill="currentColor"><path d="M12 3L5 8l7 5z"/><rect x="2.7" y="3" width="1.8" height="10" rx=".4"/></svg>Back</button>
-          <button class="btn" id="btn-step" title="Run one step (→)">Step
-            <svg viewBox="0 0 16 16" fill="currentColor"><path d="M4 3l7 5-7 5z"/><rect x="11.5" y="3" width="1.8" height="10" rx=".4"/></svg></button>
-          <button class="btn primary" id="btn-play" title="Play until convergence (Space)">
-            <svg id="play-ico" viewBox="0 0 16 16" fill="currentColor"><path d="M1.5 3l6.5 5-6.5 5zM8 3l6.5 5L8 13z"/></svg><span id="play-label">Play until convergence</span></button>
-        </div>
-        <div class="speed">
-          <label class="lbl" for="speed">Speed <output id="speed-v"></output></label>
-          <input type="range" id="speed" min="50" max="1000" step="50">
-        </div>
-
-        <div class="hp">
-          <div class="field">
-            <div class="ft"><label for="k">K — number of neighbors</label><output id="k-v"></output></div>
-            <input type="range" id="k" min="1" max="15" step="1">
-            <div class="hint" id="k-hint"></div>
-          </div>
-          <div class="field">
-            <div class="ft"><span>Distance metric</span></div>
-            <div class="seg" id="seg-metric" role="group" aria-label="Distance metric">
-              <button data-v="euclidean">Euclidean</button><button data-v="manhattan">Manhattan</button><button data-v="chebyshev">Chebyshev</button>
+          <div class="toolbar" id="addOpts">
+            <div class="seg" id="classSeg" role="group" aria-label="Class to add"></div>
+            <div class="seg" id="setSeg" role="group" aria-label="Dataset to add to">
+              <button data-set="train" class="on">Train</button><button data-set="val">Validation</button>
             </div>
-            <div class="formula-mini" id="metric-hint"></div>
           </div>
-          <div class="field">
-            <div class="ft"><span>Vote weighting</span></div>
-            <div class="seg" id="seg-weight" role="group" aria-label="Vote weighting">
-              <button data-v="uniform">Uniform</button><button data-v="distance">Distance (1/d)</button>
+          <label id="brushOpt" class="hint" hidden>Brush <input type="range" id="brush" min="10" max="60" value="24" aria-label="Eraser radius"> <b id="brushV">24px</b></label>
+          <span class="pop" style="margin-left:auto">
+            <button class="btn ghost sm" id="helpBtn" aria-label="Keyboard shortcuts" aria-expanded="false">? Keys</button>
+            <div class="helppop" id="helpPop" role="dialog" aria-label="Keyboard shortcuts">
+              <div><kbd>Space</kbd>play / pause</div><div><kbd>→</kbd>step one sub-step</div>
+              <div><kbd>E</kbd>next epoch</div><div><kbd>R</kbd>reset model</div>
+              <div><kbd>G</kbd>generate data</div><div><kbd>1–4</kbd>select class</div>
+              <div><kbd>A</kbd>add tool &nbsp; <kbd>X</kbd>erase tool &nbsp; <kbd>P</kbd>probe tool</div>
             </div>
-            <div class="hint" id="weight-hint"></div>
+          </span>
+        </div>
+
+        <div class="cvwrap" id="cvwrap">
+          <canvas id="cv" aria-label="Data canvas: scatter plot of training and validation points"></canvas>
+          <div class="floattip" id="ftip"></div>
+          <div class="probecard" id="probeCard" hidden></div>
+        </div>
+        <div class="legend">
+          <span><i class="lg-dim"></i>training (not stored yet)</span>
+          <span><i class="lg-bright"></i>training (in memory)</span>
+          <span><i class="lg-val"></i>validation</span>
+          <span><i class="lg-probe"></i>probe / query</span>
+        </div>
+
+        <details class="grp" id="genGrp" open>
+          <summary>Generate data</summary>
+          <div>
+            <label class="row flex"><span class="lab">Pattern</span>
+              <select id="gPattern" aria-label="Pattern">
+                <option value="blobs">Gaussian blobs</option><option value="moons">Two moons</option>
+                <option value="circles">Concentric circles</option><option value="xor">XOR quadrants</option>
+                <option value="spiral">Spiral</option><option value="uniform">Uniform random</option>
+              </select></label>
+            <label class="row flex"><span class="lab">Classes</span>
+              <span><select id="gClasses" aria-label="Number of classes"><option>2</option><option selected>3</option><option>4</option></select> <span class="hint" id="gClassesHint"></span></span></label>
+            <label class="row"><span class="lab">Total points</span><input type="range" id="gTotal" min="20" max="300" step="1" value="90"><b class="val" id="gTotalV">90</b></label>
+            <label class="row"><span class="lab">Noise</span><input type="range" id="gNoise" min="0" max="1" step="0.05" value="0.3"><b class="val" id="gNoiseV">0.30</b></label>
+            <label class="row"><span class="lab">Validation ratio</span><input type="range" id="gVal" min="10" max="50" step="5" value="25"><b class="val" id="gValV">25%</b></label>
+            <label class="row flex"><span class="lab">Seed</span><span><input type="number" id="gSeed" value="42" min="0" step="1" aria-label="Random seed"> <button class="btn sm" id="gDice" title="Random seed">🎲</button></span></label>
+            <div class="btnrow"><button class="btn primary" id="gGo">Generate</button><button class="btn" id="gClear">Clear all</button></div>
           </div>
-          <div class="field">
-            <div class="ft"><span>Learning strategy</span></div>
-            <div class="seg" id="seg-strategy" role="group" aria-label="Learning strategy">
-              <button data-v="random">Memorize all</button><button data-v="cnn">Condensed NN</button>
+        </details>
+
+        <details class="grp" id="dispGrp">
+          <summary>Display options</summary>
+          <div>
+            <div class="checks">
+              <label><input type="checkbox" data-tg="boundary" checked> Decision boundary</label>
+              <label><input type="checkbox" data-tg="confidence" checked> Confidence shading</label>
+              <label><input type="checkbox" data-tg="lines" checked> Neighbor lines</label>
+              <label><input type="checkbox" data-tg="circle" checked> K-radius circle</label>
+              <label><input type="checkbox" data-tg="indices"> Point indices</label>
+              <label><input type="checkbox" data-tg="grid" checked> Grid</label>
             </div>
-            <div class="hint" id="strategy-hint"></div>
+            <label class="row flex"><span class="lab">Boundary resolution</span>
+              <select id="gridRes" aria-label="Boundary grid resolution"><option value="40">Low 40×40</option><option value="80" selected>Medium 80×80</option><option value="120">High 120×120</option></select></label>
           </div>
-          <div class="field">
-            <div class="ft"><label for="batch">Points stored per step</label><output id="batch-v"></output></div>
-            <input type="range" id="batch" min="1" max="10" step="1">
-            <div class="hint">Like a mini-batch: how many examples the model memorizes in one step.</div>
-          </div>
-          <div class="field">
-            <div class="ft"><span>Smoothing α</span><output>1</output></div>
-            <div class="hint">Probabilities use Laplace smoothing <span class="mono">p(c) = (votes<sub>c</sub> + α) / (K + C·α)</span>, so <span class="mono">ln p</span> never hits ln 0.</div>
-          </div>
-        </div>
-
-        <div class="toggles">
-          <label class="switch"><input type="checkbox" id="tg-boundary"><span class="tr"></span>Decision boundary</label>
-          <label class="switch"><input type="checkbox" id="tg-confidence"><span class="tr"></span>Confidence tint</label>
-          <label class="switch"><input type="checkbox" id="tg-neighbors"><span class="tr"></span>Query neighbors</label>
-          <label class="switch"><input type="checkbox" id="tg-errors"><span class="tr"></span>Mark mistakes</label>
-        </div>
-        <div class="keys">Keyboard: <kbd>→</kbd> step · <kbd>←</kbd> back · <kbd>Space</kbd> play / pause</div>
-      </div>
-    </section>
-  </div>
-
-  <!-- ================= RIGHT ================= -->
-  <div class="col" id="col-right">
-
-    <section class="card" aria-labelledby="t-state">
-      <div class="card-head">
-        <div class="card-title" id="t-state"><span class="num">03</span>Model State</div>
-        <div class="chips" id="state-chips"></div>
-      </div>
-      <div class="card-body">
-        <div class="explain" id="explain" aria-live="polite"></div>
-
-        <div class="sub">
-          <h3>A · Memory — the entire trained model <span class="tagline" id="mem-shape"></span></h3>
-          <p class="hint">A KNN model is just a table: the feature matrix <span class="mono">X</span> (one row per stored point) and the label vector <span class="mono">y</span>. Rows added in the latest step are highlighted.</p>
-          <div id="memory"></div>
-        </div>
-
-        <div class="sub">
-          <h3>B · Classifying the query point <span class="tagline" id="q-coords"></span></h3>
-          <p class="hint">Drag the ★ on the canvas to move <span class="mono">q</span>. Every number below is recomputed live.</p>
-          <div id="probe"></div>
-        </div>
-
-        <div class="sub">
-          <h3>C · Loss at this step</h3>
-          <div id="losscalc"></div>
-        </div>
-      </div>
-    </section>
-
-    <section class="card" aria-labelledby="t-loss">
-      <div class="card-head">
-        <div class="card-title" id="t-loss"><span class="num">04</span>Loss Graph</div>
-        <div class="seg" id="seg-chart" role="group" aria-label="Chart metric"><button data-v="loss">Cross-entropy loss</button><button data-v="err">Error rate</button></div>
-      </div>
-      <div class="card-body">
-        <div class="stats" id="stats"></div>
-        <div id="chart" aria-label="Loss per step"></div>
-        <p class="caption" id="chart-caption"></p>
-        <details class="dt">
-          <summary>Show values as a table</summary>
-          <div class="scrollbox" id="hist-table"></div>
         </details>
       </div>
     </section>
-  </div>
+
+    <!-- ========== 02 HYPERPARAMETERS & CONTROLS ========== -->
+    <section class="panel" id="panel2">
+      <div class="ph" role="button" tabindex="0" aria-expanded="true">
+        <span class="num">02</span><h2>Hyperparameters &amp; Controls</h2><span class="sub">— tune &amp; run</span>
+        <span class="spacer"></span><span class="chip" id="chipEpoch">epoch 0 / 0</span>
+        <button class="caret" aria-label="Collapse panel" tabindex="-1">⌄</button>
+      </div>
+      <div class="pb" id="p2body">
+        <label class="row"><span class="lab">K (neighbors) <i class="i" tabindex="0" data-tip="How many nearest stored points vote. Small K = wiggly boundary (overfits); large K = smooth boundary (may underfit). Odd K avoids ties for 2 classes.">i</i></span>
+          <input type="range" id="hK" min="1" max="25" step="1" value="5"><b class="val" id="hKV">5</b></label>
+        <div class="row flex"><span class="lab">Distance metric <i class="i" tabindex="0" data-tip="How 'far' is measured between two points. The formula of the chosen metric is shown below.">i</i></span>
+          <div class="seg" id="hMetric" role="group" aria-label="Distance metric">
+            <button data-v="euclidean" class="on">Euclidean</button><button data-v="manhattan">Manhattan</button><button data-v="chebyshev">Chebyshev</button><button data-v="minkowski">Minkowski</button>
+          </div></div>
+        <div class="formula" id="metricFormula"></div>
+        <label class="row" id="pRow" hidden><span class="lab">Minkowski p <i class="i" tabindex="0" data-tip="p=1 → Manhattan, p=2 → Euclidean. Larger p gets closer to Chebyshev.">i</i></span>
+          <input type="range" id="hP" min="1" max="5" step="0.5" value="3"><b class="val" id="hPV">3</b></label>
+        <div class="row flex"><span class="lab">Vote weighting <i class="i" tabindex="0" data-tip="Distance weighting lets closer neighbors count more: each vote is worth 1/d.">i</i></span>
+          <div class="seg" id="hWeight" role="group" aria-label="Vote weighting"><button data-v="uniform" class="on">Uniform</button><button data-v="distance">Distance (1/d)</button></div></div>
+        <label class="row flex"><span class="lab">Stored per epoch (B) <i class="i" tabindex="0" data-tip="How many training points the model stores each epoch. Changing it resets the model.">i</i></span>
+          <select id="hB" aria-label="Points memorized per epoch"><option>1</option><option selected>2</option><option>5</option><option>10</option></select></label>
+        <label class="row flex"><span class="lab">Memorization order <i class="i" tabindex="0" data-tip="In which order training points are stored. Random is seeded, so a run is reproducible. Changing it resets the model.">i</i></span>
+          <select id="hOrder" aria-label="Memorization order"><option value="random">Random (seeded)</option><option value="roundrobin">Class round-robin</option></select></label>
+        <label class="row flex"><span class="lab">Spotlight query <i class="i" tabindex="0" data-tip="Which validation point is followed through the 5 sub-steps. Auto cycles through them, Hardest picks a currently misclassified one, Pinned uses the point you clicked with the Probe tool.">i</i></span>
+          <select id="hSpot" aria-label="Spotlight query"><option value="auto">Auto (cycle validation points)</option><option value="hardest">Hardest (misclassified)</option><option value="pinned">Pinned</option></select></label>
+
+        <details class="grp" id="advGrp">
+          <summary>Advanced ▸</summary>
+          <div>
+            <label class="row"><span class="lab">Smoothing α <i class="i" tabindex="0" data-tip="Laplace smoothing added to every class score so no probability is exactly 0. Bigger α = less confident predictions.">i</i></span>
+              <input type="range" id="hAlpha" min="0.1" max="2" step="0.1" value="0.5"><b class="val" id="hAlphaV">0.5</b></label>
+            <label class="checks"><input type="checkbox" id="hEarly"> Early stopping <i class="i" tabindex="0" data-tip="Stop when the loss changes by less than ε for 'patience' epochs in a row.">i</i></label>
+            <div class="checks"><label>ε <input type="number" id="hEps" value="0.001" min="0" step="0.0005" aria-label="Early stopping tolerance"></label>
+              <label>patience <input type="number" id="hPat" value="5" min="1" max="50" step="1" aria-label="Early stopping patience"></label></div>
+          </div>
+        </details>
+
+        <div class="btnrow">
+          <button class="btn" id="btnStep" title="Advance one sub-step (→)">⏭ Step</button>
+          <button class="btn" id="btnEpoch" title="Finish the current epoch (E)">⏩ Next epoch</button>
+          <button class="btn primary" id="btnPlay" title="Play / pause (Space)">▶ Play until convergence</button>
+          <button class="btn" id="btnReset" title="Clear memory and loss history (R)">↺ Reset model</button>
+        </div>
+        <label class="row"><span class="lab">Speed <i class="i" tabindex="0" data-tip="Sub-steps per second while 'animate sub-steps' is on, otherwise epochs per second.">i</i></span>
+          <input type="range" id="hSpeed" min="1" max="20" step="1" value="4"><b class="val" id="hSpeedV">4</b></label>
+        <div class="checks"><label><input type="checkbox" id="animSub" checked> Animate sub-steps while playing</label></div>
+        <div class="metrics" id="metricChips" aria-live="polite"></div>
+        <div class="hint" id="ctlHint"></div>
+      </div>
+    </section>
+  </section>
+
+  <section class="col" id="colRight" aria-label="Model state and loss">
+    <!-- ========== 03 MODEL STATE ========== -->
+    <section class="panel" id="panel3">
+      <div class="ph" role="button" tabindex="0" aria-expanded="true">
+        <span class="num">03</span><h2>Model State</h2><span class="sub">— memory, math &amp; votes</span>
+        <span class="spacer"></span><span class="chip" id="chipMem">|M| = 0</span>
+        <button class="caret" aria-label="Collapse panel" tabindex="-1">⌄</button>
+      </div>
+      <div class="pb" id="p3body">
+        <div class="stepper" id="stepper" aria-label="Pipeline stage"></div>
+        <div class="statusline" id="statusLine"></div>
+        <div class="banner" id="banner" role="status" hidden></div>
+        <div class="note">KNN has no weights to learn. Its “model” is simply the memory of training examples. Training = storing points. Prediction = finding the K closest stored points and letting them vote.</div>
+        <div class="explain" id="explain" aria-live="polite"></div>
+        <div>
+          <h4 class="sec">Memory M — stored training points (this is the whole model)</h4>
+          <div class="tablewrap">
+            <table class="mem">
+              <thead><tr><th>#</th><th>x₁</th><th>x₂</th><th>class</th><th>d(q, ·)</th><th>rank</th></tr></thead>
+              <tbody id="memBody"></tbody>
+            </table>
+          </div>
+        </div>
+        <div><h4 class="sec">Distance vector (sorted after sub-step 3)</h4><div class="vec" id="distVec"></div></div>
+        <div><h4 class="sec">Votes &amp; probabilities for the spotlight query</h4><div class="bars" id="voteBars"></div></div>
+        <div><h4 class="sec">Validation confusion matrix (rows = true, columns = predicted)</h4><div id="confWrap"></div><p class="caption" id="confAcc" style="text-align:center;margin-top:6px"></p></div>
+      </div>
+    </section>
+
+    <!-- ========== 04 LOSS GRAPH ========== -->
+    <section class="panel" id="panel4">
+      <div class="ph" role="button" tabindex="0" aria-expanded="true">
+        <span class="num">04</span><h2>Loss Graph</h2><span class="sub">— validation loss per epoch</span>
+        <span class="spacer"></span><span class="chip" id="chipLoss">loss —</span>
+        <button class="caret" aria-label="Collapse panel" tabindex="-1">⌄</button>
+      </div>
+      <div class="pb" id="p4body">
+        <div class="lossleg" id="lossLegend"></div>
+        <div class="cvwrap" id="lossWrap" style="max-width:none">
+          <canvas id="lossCv" aria-label="Line chart of validation loss and error rate per epoch"></canvas>
+          <div class="floattip" id="lossTip"></div>
+        </div>
+        <p class="caption">Loss usually drops as the model remembers more examples. Small bumps are normal — a newly stored point can occasionally flip a nearby prediction.</p>
+      </div>
+    </section>
+  </section>
 </main>
 
-<footer class="bottom">
-  <div class="team-name"><small>Group</small>ManchesterLiver</div>
-  <div class="members">
-    <div><span class="id">66010064</span>กาลัญญ จินดา</div>
-    <div><span class="id">66010089</span>ขจรยศ จูเลิศ</div>
-    <div><span class="id">66010324</span>ธนกฤต สุไชยชิต</div>
-    <div><span class="id">66011463</span>รัตนพล มาสูตร</div>
-    <div><span class="id">66011520</span>อาณา สุขอุดม</div>
-    <div><span class="id">66011471</span>วรพัฒน์ คำศรี</div>
-  </div>
-  <div class="inst"><b>CE KMITL</b>Computer Engineering · King Mongkut's Institute of Technology Ladkrabang</div>
+<footer>
+  <div><b>Group: ManchesterLiver</b><br>Computer Engineering, KMITL (CE KMITL)</div>
+  <ul id="members" aria-label="Group members"></ul>
 </footer>
-
-<div class="toast" id="toast" role="status"></div>
-
-<noscript><p style="padding:20px">This visualizer needs JavaScript enabled.</p></noscript>
+<div id="gtip" role="tooltip"></div>
+<div id="toasts" aria-live="polite"></div>
 
 <script>
-(() => {
-'use strict';
-
+"use strict";
 /* =====================================================================
-   Constants & state
+   0. CONFIG & MEMBERS
    ===================================================================== */
-const $ = s => document.querySelector(s);
-const COLORS = ['#3987e5', '#d95926', '#199e70'];
-const RGB = COLORS.map(h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16)));
-const NAMES = ['A', 'B', 'C'];
-const WARN = '#fab219';
-const DW = 10, DH = 7.5;          // data domain: x1 in [0,10], x2 in [0,7.5]
-const ALPHA = 1;                  // Laplace smoothing
-const MAX_POINTS = 300;
-const GRID_RES = 5;               // CSS px between boundary samples
-const PULSE_MS = 900;
-
-const S = {
-  points: [], nextId: 1, C: 3,
-  dataset: 'blobs', perClass: 20, noise: 0.35,
-  probe: { x: 6.2, y: 3.9 },
-  k: 5, metric: 'euclidean', weighting: 'uniform', strategy: 'random', batch: 1, speed: 300,
-  batches: [], memSet: new Set(), history: [], cur: null,
-  converged: false, playing: false, playToken: 0,
-  lastInfo: { type: 'reset' },
-  tool: 'add', addClass: 0,
-  show: { boundary: true, confidence: true, neighbors: true, errors: true },
-  chartMetric: 'loss',
-  grid: null, shade: null, gridDirty: true,
-  pulses: [], cs: null,
+// TODO (owner): replace the Thai names with the members' official English names before deployment.
+const MEMBERS = [
+  { id: "66010064", name: "กาลัญญ จินดา" },
+  { id: "66010089", name: "ขจรยศ จูเลิศ" },
+  { id: "66010324", name: "ธนกฤต สุไชยชิต" },
+  { id: "66011463", name: "รัตนพล มาสูตร" },
+  { id: "66011520", name: "อาณา สุขอุดม" },
+  { id: "66011471", name: "วรพัฒน์ คำศรี" },
+];
+const CLASS_COLORS = ["#22d3ee", "#f472b6", "#fbbf24", "#a3e635"];
+const CLASS_LETTERS = ["A", "B", "C", "D"];
+const LIMITS = { maxPoints: 300, domain: 10 };
+const PATTERNS = {
+  blobs:   { label: "Gaussian blobs",     fixedClasses: null },
+  moons:   { label: "Two moons",          fixedClasses: 2 },
+  circles: { label: "Concentric circles", fixedClasses: 2 },
+  xor:     { label: "XOR quadrants",      fixedClasses: 2 },
+  spiral:  { label: "Spiral",             fixedClasses: null },
+  uniform: { label: "Uniform random",     fixedClasses: null },
 };
 
 /* =====================================================================
-   Small helpers
+   1. UTILITIES
    ===================================================================== */
-const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
-const round2 = v => Math.round(v * 100) / 100;
-const num = (v, d) => v.toFixed(d).replace('-', '−');
-const f2 = v => num(v, 2), f3 = v => num(v, 3);
-const pct = v => (v * 100).toFixed(1) + '%';
-const sleep = ms => new Promise(r => setTimeout(r, ms));
-const rand = (a, b) => a + Math.random() * (b - a);
-function gauss() { let u = 0, v = 0; while (!u) u = Math.random(); while (!v) v = Math.random(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
-const pid = p => `<span class="pid"><i class="sw sw${p.c}"></i>P${p.id}</span>`;
-const cls = c => c < 0 ? '<span class="cl">—</span>' : `<span class="cl"><i class="sw sw${c}"></i>${NAMES[c]}</span>`;
-const byId = () => new Map(S.points.map(p => [p.id, p]));
-const memPoints = () => S.points.filter(p => S.memSet.has(p.id));
+const $ = (sel, root = document) => root.querySelector(sel);
+const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
+const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+const fmt = (v, d = 2) => (Number.isFinite(v) ? v.toFixed(d) : "—");
+const pct = (v, d = 1) => (Number.isFinite(v) ? (v * 100).toFixed(d) + "%" : "—");
+const reducedMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-let toastTimer = 0;
+/** Seeded PRNG: same seed -> same sequence. */
+function mulberry32(seed) {
+  let a = seed >>> 0;
+  return function () {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function gauss(rng) { // Box–Muller
+  let u = 0;
+  while (u === 0) u = rng();
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * rng());
+}
+function shuffleInPlace(arr, rng) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+function debounce(fn, ms) {
+  let t;
+  return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); };
+}
+/** HiDPI canvas helper: sizes the backing store and returns a ctx in CSS pixels. */
+function fitCanvas(cv, cssW, cssH) {
+  const dpr = window.devicePixelRatio || 1;
+  const w = Math.max(1, Math.round(cssW * dpr)), h = Math.max(1, Math.round(cssH * dpr));
+  if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+  cv.style.width = cssW + "px"; cv.style.height = cssH + "px";
+  const ctx = cv.getContext("2d");
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return ctx;
+}
 function toast(msg) {
-  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
-  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 2600);
+  const box = $("#toasts");
+  for (const t of box.children) if (t.textContent === msg) { t.remove(); } // de-duplicate
+  const el = document.createElement("div");
+  el.className = "toast"; el.textContent = msg;
+  box.appendChild(el);
+  setTimeout(() => el.remove(), 2500);
 }
 
 /* =====================================================================
-   Data generation
+   2. DATA GENERATORS (seeded)
    ===================================================================== */
-function addPointRaw(x, y, c) {
-  const p = { id: S.nextId++, x: round2(clamp(x, 0.15, DW - 0.15)), y: round2(clamp(y, 0.15, DH - 0.15)), c, r: Math.random() };
-  S.points.push(p);
-  return p;
+/** Split `total` into C near-equal counts (remainder goes to the first classes). */
+function distribute(total, C) {
+  const base = Math.floor(total / C), rem = total % C;
+  return Array.from({ length: C }, (_, c) => base + (c < rem ? 1 : 0));
+}
+const clampDom = (v) => clamp(v, 0.05, 9.95);
+
+/**
+ * Returns { points:[{id,x1,x2,cls,set}], classCount }.
+ * Deterministic for a given parameter set (same seed -> same dataset).
+ */
+function generateDataset({ pattern, classes, total, noise, valRatio, seed }) {
+  const rng = mulberry32(seed);
+  const C = PATTERNS[pattern].fixedClasses || classes;
+  const counts = distribute(total, C);
+  const raw = [];
+  const push = (x1, x2, cls) => raw.push({ x1: clampDom(x1), x2: clampDom(x2), cls });
+
+  for (let c = 0; c < C; c++) {
+    for (let i = 0; i < counts[c]; i++) {
+      switch (pattern) {
+        case "blobs": {
+          // class centres sit on a circle of radius 2.8 around (5,5)
+          const ang = Math.PI / 4 + (2 * Math.PI * c) / C, sd = 0.45 + noise * 1.5;
+          push(5 + 2.8 * Math.cos(ang) + gauss(rng) * sd, 5 + 2.8 * Math.sin(ang) + gauss(rng) * sd, c);
+          break;
+        }
+        case "moons": {
+          const t = Math.PI * rng(), sd = noise * 0.35;
+          const X = c === 0 ? Math.cos(t) : 1 - Math.cos(t);
+          const Y = c === 0 ? Math.sin(t) : 0.5 - Math.sin(t);
+          push(5 + 2.5 * (X - 0.5 + gauss(rng) * sd), 5 + 2.5 * (Y - 0.25 + gauss(rng) * sd), c);
+          break;
+        }
+        case "circles": {
+          const r = (c === 0 ? 1.6 : 3.6) + gauss(rng) * noise * 0.7, t = 2 * Math.PI * rng();
+          push(5 + r * Math.cos(t), 5 + r * Math.sin(t), c);
+          break;
+        }
+        case "xor": {
+          // class 0 = bottom-left & top-right quadrants, class 1 = the other two
+          const sd = 0.5 + noise * 1.3, right = rng() < 0.5;
+          const cx = right ? 7.5 : 2.5, cy = (c === 0) === right ? 7.5 : 2.5;
+          push(cx + gauss(rng) * sd, cy + gauss(rng) * sd, c);
+          break;
+        }
+        case "spiral": {
+          const t = 0.15 + 0.85 * rng(), r = t * 4.4, th = (2 * Math.PI * c) / C + t * 4.2;
+          push(5 + r * Math.cos(th) + gauss(rng) * noise * 0.35, 5 + r * Math.sin(th) + gauss(rng) * noise * 0.35, c);
+          break;
+        }
+        default: // "uniform": no structure at all - labels are random (noise slider unused)
+          push(0.3 + 9.4 * rng(), 0.3 + 9.4 * rng(), Math.floor(rng() * C));
+      }
+    }
+  }
+  shuffleInPlace(raw, rng);
+  raw.forEach((p, i) => { p.id = i + 1; p.set = "train"; });
+  // stratified validation split: a share of every class goes to validation
+  for (let c = 0; c < C; c++) {
+    const members = raw.filter((p) => p.cls === c);
+    const nVal = members.length >= 2 ? clamp(Math.round(members.length * valRatio), 1, members.length - 1) : 0;
+    members.slice(0, nVal).forEach((p) => { p.set = "val"; });
+  }
+  return { points: raw, classCount: C };
 }
 
-function generate() {
-  S.points = []; S.nextId = 1;
-  const C = S.C, n = S.perClass, nz = S.noise, cx = DW / 2, cy = DH / 2;
-  if (S.dataset === 'blobs') {
-    const sd = 0.35 + nz * 1.1, off = Math.random() * Math.PI * 2;
-    for (let c = 0; c < C; c++) {
-      const a = off + 2 * Math.PI * c / C, mx = cx + 2.9 * Math.cos(a), my = cy + 2.2 * Math.sin(a);
-      for (let i = 0; i < n; i++) addPointRaw(mx + gauss() * sd, my + gauss() * sd, c);
-    }
-  } else if (S.dataset === 'rings') {
-    const sd = 0.08 + nz * 0.45;
-    for (let c = 0; c < C; c++) {
-      const R = 0.8 + c * 2.3 / (C - 1);
-      for (let i = 0; i < n; i++) {
-        const th = rand(0, 2 * Math.PI), r = Math.abs(R + gauss() * sd);
-        addPointRaw(cx + r * Math.cos(th), cy + r * Math.sin(th), c);
-      }
-    }
-  } else if (S.dataset === 'spiral') {
-    const sd = 0.05 + nz * 0.35;
-    for (let c = 0; c < C; c++) {
-      for (let i = 0; i < n; i++) {
-        const t = (i + Math.random()) / n, r = 0.35 + t * 3.1, th = t * 1.6 * 2 * Math.PI + 2 * Math.PI * c / C;
-        addPointRaw(cx + r * Math.cos(th) + gauss() * sd, cy + r * Math.sin(th) + gauss() * sd, c);
-      }
-    }
-  } else { // checkerboard of 2.5 x 2.5 cells
-    for (let i = 0; i < n * C; i++) {
-      const x = rand(0.15, DW - 0.15), y = rand(0.15, DH - 0.15);
-      let c = (Math.floor(x / 2.5) + Math.floor(y / 2.5)) % C;
-      if (Math.random() < nz * 0.25) c = (c + 1 + Math.floor(Math.random() * (C - 1))) % C;
-      addPointRaw(x, y, c);
-    }
+/* =====================================================================
+   3. KNN CORE (pure functions - never touch the DOM)
+   ===================================================================== */
+const METRICS = ["euclidean", "manhattan", "chebyshev", "minkowski"];
+
+/** Distance between (a1,a2) and (b1,b2). `p` is only used by Minkowski. */
+function distance(metric, a1, a2, b1, b2, p) {
+  const dx = Math.abs(a1 - b1), dy = Math.abs(a2 - b2);
+  switch (metric) {
+    case "manhattan": return dx + dy;
+    case "chebyshev": return dx > dy ? dx : dy;
+    case "minkowski":
+      if (p === 1) return dx + dy;
+      if (p === 2) return Math.sqrt(dx * dx + dy * dy);
+      if (p === 3) return Math.cbrt(dx * dx * dx + dy * dy * dy); // fast path: pow() is slow in the hot loops
+      return Math.pow(Math.pow(dx, p) + Math.pow(dy, p), 1 / p);
+    default: return Math.sqrt(dx * dx + dy * dy);
   }
 }
 
-/* =====================================================================
-   KNN core (the math)
-   ===================================================================== */
-function dist(ax, ay, bx, by, metric) {
-  const dx = Math.abs(ax - bx), dy = Math.abs(ay - by);
-  if (metric === 'manhattan') return dx + dy;
-  if (metric === 'chebyshev') return Math.max(dx, dy);
-  return Math.sqrt(dx * dx + dy * dy);
+/** Build a memory/validation container from points in a given order. */
+function buildSet(points) {
+  const n = points.length;
+  const s = { x1: new Float64Array(n), x2: new Float64Array(n), y: new Int32Array(n), ids: new Array(n), n };
+  points.forEach((p, i) => { s.x1[i] = p.x1; s.x2[i] = p.x2; s.y[i] = p.cls; s.ids[i] = p.id; });
+  return s;
+}
+/** A view of the first `n` entries (memory prefix). No copying. */
+const prefix = (set, n) => ({ x1: set.x1, x2: set.x2, y: set.y, ids: set.ids, n: Math.min(n, set.n) });
+
+/** All distances from q to the first mem.n stored points (memory order). */
+function allDistances(mem, qx, qy, hp) {
+  const d = new Float64Array(mem.n);
+  for (let i = 0; i < mem.n; i++) d[i] = distance(hp.metric, qx, qy, mem.x1[i], mem.x2[i], hp.p);
+  return d;
+}
+/** Indices sorted by (distance asc, index asc) - stable tie-break by smaller index. */
+function sortedOrder(d) {
+  const idx = Array.from({ length: d.length }, (_, i) => i);
+  idx.sort((a, b) => d[a] - d[b] || a - b);
+  return idx;
 }
 
-// K nearest stored points to (qx,qy), sorted by distance (ascending). excludeId = leave-one-out.
-function kNearest(qx, qy, mem, k, metric, excludeId) {
-  const best = [];
-  for (const p of mem) {
-    if (p.id === excludeId) continue;
-    const d = dist(qx, qy, p.x, p.y, metric);
-    if (best.length < k) best.push({ p, d });
-    else if (d < best[k - 1].d) best[k - 1] = { p, d };
+/**
+ * KNN prediction for one query.
+ * Returns { probs, scores, pred, k, nbIdx, nbD, weights, exact }.
+ * nbIdx are indices into the memory arrays, nearest first.
+ */
+function knnPredict(mem, qx, qy, hp, C) {
+  const n = mem.n, k = Math.min(hp.K, n);
+  const nbD = new Array(k), nbIdx = new Array(k);
+  let m = 0;
+  // keep the k smallest distances with insertion; strict ">" keeps equal distances in index order
+  for (let i = 0; i < n; i++) {
+    const d = distance(hp.metric, qx, qy, mem.x1[i], mem.x2[i], hp.p);
+    let pos;
+    if (m < k) { pos = m; m++; }
+    else if (d < nbD[k - 1]) pos = k - 1;
     else continue;
-    for (let i = best.length - 1; i > 0 && best[i - 1].d > best[i].d; i--) { const t = best[i]; best[i] = best[i - 1]; best[i - 1] = t; }
+    while (pos > 0 && nbD[pos - 1] > d) { nbD[pos] = nbD[pos - 1]; nbIdx[pos] = nbIdx[pos - 1]; pos--; }
+    nbD[pos] = d; nbIdx[pos] = i;
   }
-  return best;
+  // vote weights; in distance mode an exact match (d = 0) dominates
+  const weights = new Array(k);
+  const exact = hp.weighting === "distance" && nbD.some((d) => d === 0);
+  for (let j = 0; j < k; j++) {
+    weights[j] = hp.weighting !== "distance" ? 1 : exact ? (nbD[j] === 0 ? 1 : 0) : 1 / (nbD[j] + 1e-6);
+  }
+  const scores = new Float64Array(C);
+  for (let j = 0; j < k; j++) scores[mem.y[nbIdx[j]]] += weights[j];
+  // Laplace-smoothed probabilities; empty memory -> uniform 1/C
+  const probs = new Float64Array(C);
+  let total = 0;
+  for (let c = 0; c < C; c++) total += scores[c];
+  const denom = total + hp.alpha * C;
+  for (let c = 0; c < C; c++) probs[c] = n === 0 ? 1 / C : (scores[c] + hp.alpha) / denom;
+  // argmax; tie -> class of the nearest neighbour among the tied classes, then smallest class index
+  let best = 0;
+  for (let c = 1; c < C; c++) if (probs[c] > probs[best]) best = c;
+  const tied = [];
+  for (let c = 0; c < C; c++) if (probs[c] >= probs[best] - 1e-12) tied.push(c);
+  let pred = tied[0];
+  if (tied.length > 1) {
+    for (let j = 0; j < k; j++) {
+      const c = mem.y[nbIdx[j]];
+      if (tied.includes(c)) { pred = c; break; }
+    }
+  }
+  return { probs, scores, pred, k, nbIdx, nbD, weights, exact };
 }
 
-// Votes -> smoothed class probabilities -> prediction
-function vote(nb, C, weighting) {
-  const k = nb.length, raw = new Array(C).fill(0);
-  const w = nb.map(n => weighting === 'distance' ? 1 / Math.max(n.d, 1e-3) : 1);
-  let tw = 0;
-  nb.forEach((n, i) => { raw[n.p.c] += w[i]; tw += w[i]; });
-  const votes = raw.map(r => tw > 0 ? r * k / tw : 0);          // weights rescaled so they sum to K
-  const probs = votes.map(v => (v + ALPHA) / (k + C * ALPHA));
-  let pred = -1, tie = false;
-  if (k > 0) {
-    const mx = Math.max(...probs), tied = [];
-    probs.forEach((p, c) => { if (Math.abs(p - mx) <= 1e-9) tied.push(c); });
-    pred = tied[0];
-    if (tied.length > 1) { tie = true; for (const n of nb) if (tied.includes(n.p.c)) { pred = n.p.c; break; } }
+/**
+ * Evaluate on a validation set: cross-entropy loss, error rate, confusion matrix.
+ * confusion[true * C + predicted] = count.
+ */
+function evaluate(mem, val, hp, C) {
+  const nv = val.n;
+  const confusion = new Int32Array(C * C);
+  const preds = new Int32Array(nv), pTrue = new Float64Array(nv);
+  let loss = 0, correct = 0;
+  for (let j = 0; j < nv; j++) {
+    const r = knnPredict(mem, val.x1[j], val.x2[j], hp, C);
+    preds[j] = r.pred; pTrue[j] = r.probs[val.y[j]];
+    loss -= Math.log(Math.max(pTrue[j], 1e-6));
+    if (r.pred === val.y[j]) correct++;
+    confusion[val.y[j] * C + r.pred]++;
   }
-  return { k, raw, w, tw, votes, probs, pred, tie };
+  return {
+    loss: nv ? loss / nv : NaN, error: nv ? (nv - correct) / nv : NaN,
+    accuracy: nv ? correct / nv : NaN, correct, n: nv, confusion, preds, pTrue,
+  };
 }
 
-// Leave-one-out evaluation of every point using the given memory
-function evaluate(memSet) {
-  const mem = S.points.filter(p => memSet.has(p.id));
-  const per = new Map(); let sum = 0, wrong = 0;
-  for (const p of S.points) {
-    const v = vote(kNearest(p.x, p.y, mem, S.k, S.metric, p.id), S.C, S.weighting);
-    const pt = v.probs[p.c], l = -Math.log(pt);
-    sum += l; if (v.pred !== p.c) wrong++;
-    per.set(p.id, { pTrue: pt, pred: v.pred, loss: l });
+/** Decision-boundary grid: predicted class + max probability per cell centre. 255 = unknown (empty memory). */
+function boundaryGrid(mem, res, hp, C) {
+  const pred = new Uint8Array(res * res), conf = new Float32Array(res * res);
+  const step = LIMITS.domain / res;
+  for (let j = 0; j < res; j++) {
+    for (let i = 0; i < res; i++) {
+      const o = j * res + i;
+      if (mem.n === 0) { pred[o] = 255; conf[o] = 1 / C; continue; }
+      const r = knnPredict(mem, (i + 0.5) * step, (j + 0.5) * step, hp, C);
+      pred[o] = r.pred; conf[o] = r.probs[r.pred];
+    }
   }
-  const N = S.points.length;
-  return { N, m: mem.length, sum, wrong, loss: N ? sum / N : 0, err: N ? wrong / N : 0, per };
+  return { res, pred, conf };
 }
-const summarize = (e, step) => ({ step, m: e.m, N: e.N, sum: e.sum, wrong: e.wrong, loss: e.loss, err: e.err });
+
+/** Loss history for epochs 0..upTo (memory prefix = min(e*B, N)). */
+function lossHistory(memFull, val, hp, C, B, upTo) {
+  const out = [];
+  for (let e = 0; e <= upTo; e++) {
+    const size = Math.min(e * B, memFull.n);
+    const ev = evaluate(prefix(memFull, size), val, hp, C);
+    out.push({ epoch: e, memSize: size, loss: ev.loss, error: ev.error });
+  }
+  return out;
+}
 
 /* =====================================================================
-   Training loop: state transitions
+   4. STATE & STATE MACHINE
    ===================================================================== */
-function updateConverged() {
-  let c = false;
-  if (S.points.length) {
-    const out = S.points.filter(p => !S.memSet.has(p.id));
-    c = S.strategy === 'random' ? out.length === 0 : out.every(p => S.cur.per.get(p.id).pred === p.c);
-  }
-  S.converged = c;
+const state = {
+  data: { points: [], classCount: 3, nextId: 1, version: 0 },
+  gen: { pattern: "blobs", classes: 3, total: 90, noise: 0.3, valRatio: 0.25, seed: 42 },
+  hp: { K: 5, metric: "euclidean", p: 3, weighting: "uniform", alpha: 0.5, B: 2, order: "random", spotlightMode: "auto", earlyStop: false, eps: 0.001, patience: 5 },
+  run: null, // created by resetModel()
+  ui: {
+    tool: "add", addClass: 0, addSet: "train", brush: 24, probe: null, pinnedId: null,
+    toggles: { boundary: true, confidence: true, lines: true, circle: true, indices: false, grid: true },
+    gridRes: 80, speed: 4, animateSubsteps: true, hoverId: null, mouse: null,
+  },
+};
+const memorizedSet = () => state.run.memSet;
+
+/* ---- data mutation helpers ---- */
+function setDataset(ds) {
+  state.data.points = ds.points;
+  state.data.classCount = ds.classCount;
+  state.data.nextId = ds.points.reduce((m, p) => Math.max(m, p.id), 0) + 1;
+  dataChanged();
+}
+function dataChanged(message) {
+  state.data.version++;
+  updateDataChips();
+  afterDataChange(message);
+  requestRender();
+}
+function addPoint(x1, x2, cls, set) {
+  if (state.data.points.length >= LIMITS.maxPoints) { toast(`Maximum of ${LIMITS.maxPoints} points reached.`); return; }
+  state.data.points.push({ id: state.data.nextId++, x1: clampDom(x1), x2: clampDom(x2), cls, set });
+  dataChanged("Data changed — model reset.");
+}
+function removePoints(pred) {
+  const before = state.data.points.length;
+  state.data.points = state.data.points.filter((p) => !pred(p));
+  if (state.data.points.length !== before) dataChanged("Data changed — model reset.");
+}
+function updateDataChips() {
+  const pts = state.data.points;
+  const nTr = pts.filter((p) => p.set === "train").length;
+  $("#chipPoints").textContent = `${pts.length} points (${nTr} train · ${pts.length - nTr} val)`;
 }
 
-// Rebuild memory + full loss history from the batch log (used after any data / hyperparameter change)
-function recomputeAll() {
-  const ids = new Set(S.points.map(p => p.id));
-  S.batches = S.batches.map(b => b.filter(id => ids.has(id))).filter(b => b.length);
-  const mem = new Set();
-  let e = evaluate(mem);
-  S.history = [summarize(e, 0)];
-  S.batches.forEach((b, i) => { b.forEach(id => mem.add(id)); e = evaluate(mem); S.history.push(summarize(e, i + 1)); });
-  S.memSet = mem; S.cur = e;
-  updateConverged();
-  S.gridDirty = true;
+/* ---- run state: memorize -> distance -> sort & select K -> vote -> evaluate ---- */
+const SUBSTEPS = ["Memorize", "Distance", "Sort & Select K", "Vote", "Evaluate"];
+const MEMORIZE = 0, DISTANCE = 1, SORT = 2, VOTE = 3, EVALUATE = 4;
+let playTimer = null, pendingGhost = null, ghostTimer = null, runCounter = 0;
+
+/** Memorization order. Seeded from the generator seed so a run is reproducible. */
+function computeOrder(train) {
+  const rng = mulberry32((state.gen.seed * 7919 + 13) >>> 0);
+  if (state.hp.order === "roundrobin") {
+    const groups = Array.from({ length: state.data.classCount }, () => []);
+    train.forEach((p) => groups[p.cls].push(p));
+    groups.forEach((g) => shuffleInPlace(g, rng));
+    const out = [];
+    for (let i = 0, more = true; more; i++) {
+      more = false;
+      for (const g of groups) if (i < g.length) { out.push(g[i]); more = true; }
+    }
+    return out;
+  }
+  return shuffleInPlace(train.slice(), rng);
+}
+function hpLabel(hp = state.hp) {
+  const m = { euclidean: "Euclidean", manhattan: "Manhattan", chebyshev: "Chebyshev", minkowski: `Minkowski p=${hp.p}` }[hp.metric];
+  return `K=${hp.K}, ${m}, ${hp.weighting === "distance" ? "1/d" : "uniform"}`;
+}
+function newRun() {
+  const pts = state.data.points;
+  const train = pts.filter((p) => p.set === "train");
+  const order = computeOrder(train);
+  const N = train.length;
+  return {
+    memFull: buildSet(order),            // all training points in memorization order; memory = first n of them
+    val: buildSet(pts.filter((p) => p.set === "val")),
+    N, T: Math.ceil(N / state.hp.B),
+    id: ++runCounter, n: 0, epoch: 0, next: MEMORIZE, phase: -1, phaseStart: 0,
+    memSet: new Set(), lastAdded: [], popStart: 0,
+    query: null, spot: null, evalRes: null,
+    history: [], histLabel: "", ghost: null, bndN: 0,
+    status: "idle", convReason: null, convEpoch: null, flat: 0,
+  };
+}
+function resetModel() {
+  clearTimeout(playTimer);
+  pendingGhost = null;
+  const r = (state.run = newRun());
+  const ev0 = evaluate(prefix(r.memFull, 0), r.val, state.hp, state.data.classCount);
+  r.history = [{ epoch: 0, memSize: 0, loss: ev0.loss, error: ev0.error }];
+  r.histLabel = hpLabel();
   renderAll();
 }
+function afterDataChange(message) {
+  const started = state.run && (state.run.epoch > 0 || state.run.phase >= 0);
+  if (state.ui.pinnedId && !state.data.points.some((p) => p.id === state.ui.pinnedId && p.set === "val")) state.ui.pinnedId = null;
+  buildClassChips();
+  resetModel();
+  if (started && message) toast(message);
+}
 
-function step(fromPlay) {
-  if (!S.points.length) { toast('Add some points first.'); return false; }
-  if (S.converged) { if (!fromPlay) toast('Already converged — press Reset to train again.'); return false; }
-  const out = S.points.filter(p => !S.memSet.has(p.id));
-  let chosen, why = null;
-  if (S.strategy === 'random') {
-    chosen = out.sort((a, b) => a.r - b.r).slice(0, S.batch);
-  } else {
-    const per = S.cur.per;
-    chosen = out.filter(p => per.get(p.id).pred !== p.c)
-      .sort((a, b) => per.get(b.id).loss - per.get(a.id).loss || a.r - b.r)
-      .slice(0, S.batch);
-    why = chosen.map(p => ({ p, ...per.get(p.id) }));
+/** Pick the spotlight query for the epoch that just started memorizing. */
+function chooseQuery() {
+  const r = state.run, byId = (id) => state.data.points.find((p) => p.id === id);
+  const asQuery = (p, kind) => ({ x1: p.x1, x2: p.x2, id: p.id, cls: p.cls, kind });
+  if (r.val.n > 0) {
+    let p = null;
+    if (state.hp.spotlightMode === "pinned" && state.ui.pinnedId) p = byId(state.ui.pinnedId);
+    if (!p && state.hp.spotlightMode === "hardest" && r.evalRes) {
+      // the currently misclassified validation point whose true class got the lowest probability
+      let best = -1, bp = Infinity;
+      for (let j = 0; j < r.val.n; j++) {
+        if (r.evalRes.preds[j] !== r.val.y[j] && r.evalRes.pTrue[j] < bp) { bp = r.evalRes.pTrue[j]; best = j; }
+      }
+      if (best >= 0) p = byId(r.val.ids[best]);
+    }
+    if (!p) p = byId(r.val.ids[(r.epoch - 1) % r.val.n]); // auto: cycle through validation points
+    return asQuery(p, "val");
   }
-  if (!chosen.length) { updateConverged(); renderAll(); return false; }
+  // no validation data: use the probe if there is one, else the first training point
+  if (state.ui.probe) return { x1: state.ui.probe.x1, x2: state.ui.probe.x2, id: null, cls: null, kind: "probe" };
+  return asQuery(byId(r.memFull.ids[0]), "train");
+}
+/** Everything derived from (query, memory, hyperparameters). Cheap, so recomputed instead of patched. */
+function computeSpot() {
+  const r = state.run, q = r.query, mem = prefix(r.memFull, r.n);
+  const d = allDistances(mem, q.x1, q.x2, state.hp);
+  return { d, order: sortedOrder(d), nb: knnPredict(mem, q.x1, q.x2, state.hp, state.data.classCount) };
+}
 
-  const before = S.history[S.history.length - 1];
-  S.batches.push(chosen.map(p => p.id));
-  chosen.forEach(p => S.memSet.add(p.id));
-  S.cur = evaluate(S.memSet);
-  const after = summarize(S.cur, S.batches.length);
-  S.history.push(after);
-  updateConverged();
-  S.lastInfo = { type: 'step', t: S.batches.length, chosen, why, before, after };
-  const now = performance.now();
-  chosen.forEach(p => S.pulses.push({ id: p.id, t0: now }));
-  S.gridDirty = true;
-  renderAll();
-  if (S.converged && !fromPlay) toast(`Converged after ${S.batches.length} steps ✓`);
+const canStep = () => state.run.status !== "converged" && state.run.N > 0;
+const canPlay = () => canStep() && state.run.val.n > 0;
+
+/** Advance exactly one sub-step. `silent` skips rendering (used by Next epoch / tests). */
+function stepOnce(silent = false) {
+  const r = state.run, hp = state.hp, C = state.data.classCount;
+  if (!canStep()) return false;
+  const sub = r.next;
+  if (sub === MEMORIZE) {
+    r.epoch++;
+    const add = Math.min(hp.B, r.N - r.n);
+    r.lastAdded = r.memFull.ids.slice(r.n, r.n + add);
+    r.lastAdded.forEach((id) => r.memSet.add(id));
+    r.prevN = r.n; r.n += add;
+    r.popStart = performance.now();
+    r.query = chooseQuery();
+    r.spot = computeSpot();
+    if (!silent) spawnStoredFloater(r.lastAdded);
+  } else if (sub === EVALUATE) {
+    r.evalRes = evaluate(prefix(r.memFull, r.n), r.val, hp, C);
+    r.history.push({ epoch: r.epoch, memSize: r.n, loss: r.evalRes.loss, error: r.evalRes.error });
+    r.bndN = r.n; // the decision boundary is re-rendered from the memory as it is now
+    const h = r.history;
+    if (r.n >= r.N) { r.status = "converged"; r.convReason = "all"; r.convEpoch = r.epoch; }
+    else if (hp.earlyStop && h.length >= 2 && Number.isFinite(r.evalRes.loss)) {
+      r.flat = Math.abs(h[h.length - 1].loss - h[h.length - 2].loss) < hp.eps ? r.flat + 1 : 0;
+      if (r.flat >= hp.patience) { r.status = "converged"; r.convReason = "early"; r.convEpoch = r.epoch; }
+    }
+    if (r.status === "converged") clearTimeout(playTimer);
+  }
+  r.phase = sub; r.phaseStart = performance.now();
+  r.next = (sub + 1) % 5;
+  if (!silent) renderAll();
   return true;
 }
-
-function stepBack() {
-  if (!S.batches.length) return;
-  const removed = S.batches.pop();
-  S.history.pop();
-  removed.forEach(id => S.memSet.delete(id));
-  S.cur = evaluate(S.memSet);
-  updateConverged();
-  const m = byId();
-  S.lastInfo = { type: 'back', removed: removed.map(id => m.get(id)).filter(Boolean) };
-  S.gridDirty = true;
+/** Finish the remaining sub-steps of the current epoch instantly. */
+function nextEpoch() {
+  if (!canStep()) return;
+  do { stepOnce(true); } while (state.run.next !== MEMORIZE && state.run.status !== "converged");
   renderAll();
 }
-
-function stopPlay() { S.playing = false; S.playToken++; }
-
-function resetModel(info) {
-  stopPlay();
-  S.batches = [];
-  S.points.forEach(p => { p.r = Math.random(); });
-  S.lastInfo = info || { type: 'reset' };
-  recomputeAll();
+function play() {
+  const r = state.run;
+  if (!canPlay()) return;
+  r.status = "running"; scheduleTick(); renderAll();
 }
+function pause() {
+  const r = state.run;
+  if (r.status !== "running") return;
+  r.status = "paused"; clearTimeout(playTimer); renderAll();
+}
+function scheduleTick() {
+  clearTimeout(playTimer);
+  playTimer = setTimeout(() => {
+    if (state.run.status !== "running") return;
+    if (state.ui.animateSubsteps) stepOnce(); else nextEpoch();
+    if (state.run.status === "running") scheduleTick();
+  }, 1000 / state.ui.speed);
+}
+const togglePlay = () => (state.run.status === "running" ? pause() : play());
 
-async function play() {
-  if (S.playing) { stopPlay(); renderControls(); return; }
-  if (!S.points.length) { toast('Add some points first.'); return; }
-  if (S.converged) { toast('Already converged — press Reset to train again.'); return; }
-  S.playing = true;
-  const tok = ++S.playToken;
-  renderControls();
-  while (S.playing && tok === S.playToken) {
-    if (!step(true) || S.converged) break;
-    await sleep(S.speed);
+/**
+ * Hyperparameters that do NOT reset memory (K, metric, p, weighting, alpha) were changed:
+ * keep the memory, redraw everything, and recompute the whole loss history with the new
+ * settings. The curve from the old settings stays as a single faint "ghost".
+ */
+function onHpChange() {
+  const r = state.run, C = state.data.classCount;
+  if (r.history.length > 1) {
+    if (!pendingGhost) pendingGhost = { label: r.histLabel + " (previous)", history: r.history.map((h) => ({ ...h })) };
+    r.ghost = pendingGhost;
+    clearTimeout(ghostTimer);
+    ghostTimer = setTimeout(() => { pendingGhost = null; }, 700); // one drag of a slider = one ghost
   }
-  if (tok === S.playToken) { S.playing = false; renderControls(); if (S.converged) toast(`Converged after ${S.batches.length} steps ✓`); }
-}
-
-/* =====================================================================
-   Canvas: decision boundary + points
-   ===================================================================== */
-const board = { cv: $('#board'), ctx: $('#board').getContext('2d'), w: 0, h: 0 };
-const toPx = (x, y) => [x / DW * board.w, (1 - y / DH) * board.h];
-const toData = (px, py) => [px / board.w * DW, (1 - py / board.h) * DH];
-
-function resizeBoard() {
-  const wrap = $('#board-wrap'), dpr = window.devicePixelRatio || 1;
-  board.w = wrap.clientWidth; board.h = wrap.clientHeight;
-  board.cv.width = Math.round(board.w * dpr); board.cv.height = Math.round(board.h * dpr);
-  board.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  S.gridDirty = true;
-  drawBoard();
-}
-
-// Classify every grid node with the current memory (fast typed-array version of kNearest + vote)
-function computeGrid() {
-  S.gridDirty = false;
-  const mem = memPoints();
-  if (!mem.length || !board.w) { S.grid = null; S.shade = null; return; }
-  const w = board.w, h = board.h, res = GRID_RES, C = S.C;
-  const cols = Math.ceil(w / res) + 1, rows = Math.ceil(h / res) + 1, nodes = cols * rows;
-  const m = mem.length, k = Math.min(S.k, m);
-  const mx = new Float64Array(m), my = new Float64Array(m), mc = new Int32Array(m);
-  mem.forEach((p, i) => { mx[i] = p.x; my[i] = p.y; mc[i] = p.c; });
-  const prob = new Float32Array(nodes * C), pred = new Int8Array(nodes), conf = new Float32Array(nodes);
-  const bd = new Float64Array(k), bc = new Int32Array(k), raw = new Float64Array(C), pl = new Float64Array(C);
-  const metric = S.metric === 'euclidean' ? 0 : S.metric === 'manhattan' ? 1 : 2, wd = S.weighting === 'distance';
-  const base = 1 / C, pTop = (k + ALPHA) / (k + C * ALPHA);
-  for (let j = 0; j < rows; j++) {
-    const y = DH * (1 - j * res / h);
-    for (let i = 0; i < cols; i++) {
-      const x = DW * i * res / w, idx = j * cols + i;
-      let n = 0;
-      for (let t = 0; t < m; t++) {
-        const dx = Math.abs(x - mx[t]), dy = Math.abs(y - my[t]);
-        const d = metric === 0 ? Math.sqrt(dx * dx + dy * dy) : metric === 1 ? dx + dy : Math.max(dx, dy);
-        let q;
-        if (n < k) q = n++; else if (d < bd[k - 1]) q = k - 1; else continue;
-        while (q > 0 && bd[q - 1] > d) { bd[q] = bd[q - 1]; bc[q] = bc[q - 1]; q--; }
-        bd[q] = d; bc[q] = mc[t];
-      }
-      raw.fill(0); let tw = 0;
-      for (let q = 0; q < n; q++) { const wt = wd ? 1 / Math.max(bd[q], 1e-3) : 1; raw[bc[q]] += wt; tw += wt; }
-      let best = -1, bi = 0, tie = false;
-      for (let c = 0; c < C; c++) {
-        const p = (raw[c] * k / tw + ALPHA) / (k + C * ALPHA);
-        pl[c] = p; prob[idx * C + c] = p;
-        if (p > best + 1e-9) { best = p; bi = c; tie = false; } else if (Math.abs(p - best) <= 1e-9) tie = true;
-      }
-      if (tie) for (let q = 0; q < n; q++) if (Math.abs(pl[bc[q]] - best) <= 1e-9) { bi = bc[q]; break; }
-      pred[idx] = bi;
-      conf[idx] = pTop > base ? (best - base) / (pTop - base) : 0;
-    }
-  }
-  S.grid = { cols, rows, res, prob, pred, conf, C };
-  buildShade();
-}
-
-function buildShade() {
-  const g = S.grid; if (!g) { S.shade = null; return; }
-  const off = document.createElement('canvas'); off.width = g.cols; off.height = g.rows;
-  const octx = off.getContext('2d'), img = octx.createImageData(g.cols, g.rows);
-  for (let i = 0; i < g.cols * g.rows; i++) {
-    const [r, gg, b] = RGB[g.pred[i]];
-    const a = S.show.confidence ? 0.07 + 0.36 * clamp(g.conf[i], 0, 1) : 0.26;
-    img.data[i * 4] = r; img.data[i * 4 + 1] = gg; img.data[i * 4 + 2] = b; img.data[i * 4 + 3] = Math.round(a * 255);
-  }
-  octx.putImageData(img, 0, 0);
-  S.shade = off;
-}
-
-// Marching squares on s_c = p_c − max_{j≠c} p_j  (the boundary is where s_c = 0)
-const MS = { 1: 'LB', 2: 'BR', 3: 'LR', 4: 'TR', 5: 'TRLB', 6: 'TB', 7: 'TL', 8: 'TL', 9: 'TB', 10: 'TLBR', 11: 'TR', 12: 'LR', 13: 'BR', 14: 'LB' };
-function drawContours(ctx) {
-  const { cols, rows, res, prob, C } = S.grid;
-  const s = new Float32Array(cols * rows);
-  const tt = (a, b) => (a - b === 0 ? 0.5 : clamp(a / (a - b), 0, 1));
-  ctx.beginPath();
-  for (let c = 0; c < (C === 2 ? 1 : C); c++) {
-    for (let i = 0; i < cols * rows; i++) {
-      let mo = -Infinity;
-      for (let j = 0; j < C; j++) if (j !== c) mo = Math.max(mo, prob[i * C + j]);
-      s[i] = prob[i * C + c] - mo;
-    }
-    for (let j = 0; j < rows - 1; j++) for (let i = 0; i < cols - 1; i++) {
-      const a = s[j * cols + i], b = s[j * cols + i + 1], cc = s[(j + 1) * cols + i + 1], d = s[(j + 1) * cols + i];
-      const code = (a > 0 ? 8 : 0) | (b > 0 ? 4 : 0) | (cc > 0 ? 2 : 0) | (d > 0 ? 1 : 0);
-      if (code === 0 || code === 15) continue;
-      const x0 = i * res, y0 = j * res;
-      const P = {
-        T: () => [x0 + res * tt(a, b), y0], B: () => [x0 + res * tt(d, cc), y0 + res],
-        L: () => [x0, y0 + res * tt(a, d)], R: () => [x0 + res, y0 + res * tt(b, cc)],
-      };
-      const e = MS[code];
-      for (let q = 0; q < e.length; q += 2) {
-        const p1 = P[e[q]](), p2 = P[e[q + 1]]();
-        ctx.moveTo(p1[0], p1[1]); ctx.lineTo(p2[0], p2[1]);
-      }
-    }
-  }
-  ctx.strokeStyle = 'rgba(255,255,255,0.88)'; ctx.lineWidth = 1.6; ctx.lineCap = 'round';
-  ctx.stroke();
-}
-
-function shapePath(ctx, c, x, y, r) {
-  ctx.beginPath();
-  if (c === 0) ctx.arc(x, y, r, 0, Math.PI * 2);
-  else if (c === 1) { const s = r * 0.9; ctx.rect(x - s, y - s, 2 * s, 2 * s); }
-  else { ctx.moveTo(x, y - r * 1.2); ctx.lineTo(x + r * 1.1, y + r * 0.75); ctx.lineTo(x - r * 1.1, y + r * 0.75); ctx.closePath(); }
-}
-
-function starPath(ctx, x, y, R, r) {
-  ctx.beginPath();
-  for (let i = 0; i < 10; i++) {
-    const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? r : R;
-    ctx[i ? 'lineTo' : 'moveTo'](x + rr * Math.cos(a), y + rr * Math.sin(a));
-  }
-  ctx.closePath();
-}
-
-function computeProbe() {
-  const q = S.probe, mem = memPoints();
-  const all = mem.map(p => ({ p, d: dist(q.x, q.y, p.x, p.y, S.metric) })).sort((a, b) => a.d - b.d);
-  const kEff = Math.min(S.k, all.length), nb = all.slice(0, kEff);
-  return { all, nb, kEff, v: vote(nb, S.C, S.weighting) };
-}
-
-let rafId = 0;
-function requestDraw() { if (!rafId) rafId = requestAnimationFrame(() => { rafId = 0; drawBoard(); }); }
-
-function drawBoard() {
-  const { ctx, w, h } = board;
-  if (!w) return;
-  if (S.gridDirty) computeGrid();
-  ctx.clearRect(0, 0, w, h);
-  ctx.fillStyle = '#0a0b0d'; ctx.fillRect(0, 0, w, h);
-
-  if (S.grid && S.show.boundary && S.shade) {
-    const g = S.grid;
-    ctx.save(); ctx.imageSmoothingEnabled = true;
-    ctx.drawImage(S.shade, -g.res / 2, -g.res / 2, g.cols * g.res, g.rows * g.res);
-    ctx.restore();
-  }
-
-  // unit grid + axis ticks
-  ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(255,255,255,0.05)'; ctx.beginPath();
-  for (let x = 1; x < DW; x++) { const px = Math.round(x / DW * w) + 0.5; ctx.moveTo(px, 0); ctx.lineTo(px, h); }
-  for (let y = 1; y < DH; y++) { const py = Math.round((1 - y / DH) * h) + 0.5; ctx.moveTo(0, py); ctx.lineTo(w, py); }
-  ctx.stroke();
-  ctx.fillStyle = 'rgba(255,255,255,0.38)'; ctx.font = '10px "JetBrains Mono", monospace';
-  ctx.textBaseline = 'bottom'; ctx.textAlign = 'center';
-  for (let x = 2; x < DW; x += 2) ctx.fillText(x, x / DW * w, h - 3);
-  ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-  for (let y = 1; y < DH; y++) ctx.fillText(y, 4, (1 - y / DH) * h);
-  ctx.textAlign = 'right'; ctx.textBaseline = 'bottom'; ctx.fillText('x₁ →', w - 6, h - 3);
-  ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.fillText('↑ x₂', 4, 5);
-
-  if (S.grid && S.show.boundary) drawContours(ctx);
-
-  const pr = S.memSet.size ? computeProbe() : null;
-  const [qx, qy] = toPx(S.probe.x, S.probe.y);
-  const unit = w / DW;
-
-  // query neighborhood (shape depends on the metric) + lines to neighbors
-  if (pr && pr.kEff && S.show.neighbors) {
-    const R = pr.nb[pr.kEff - 1].d * unit;
-    ctx.beginPath();
-    if (S.metric === 'euclidean') ctx.arc(qx, qy, R, 0, Math.PI * 2);
-    else if (S.metric === 'manhattan') { ctx.moveTo(qx, qy - R); ctx.lineTo(qx + R, qy); ctx.lineTo(qx, qy + R); ctx.lineTo(qx - R, qy); ctx.closePath(); }
-    else ctx.rect(qx - R, qy - R, 2 * R, 2 * R);
-    ctx.fillStyle = 'rgba(255,255,255,0.045)'; ctx.fill();
-    ctx.setLineDash([5, 4]); ctx.strokeStyle = 'rgba(255,255,255,0.55)'; ctx.lineWidth = 1.2; ctx.stroke(); ctx.setLineDash([]);
-    ctx.beginPath();
-    for (const n of pr.nb) { const [px, py] = toPx(n.p.x, n.p.y); ctx.moveTo(qx, qy); ctx.lineTo(px, py); }
-    ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.lineWidth = 1.2; ctx.stroke();
-  }
-
-  // points
-  const R = 5.5;
-  for (const p of S.points) {
-    const [x, y] = toPx(p.x, p.y);
-    shapePath(ctx, p.c, x, y, R);
-    if (S.memSet.has(p.id)) {
-      ctx.fillStyle = COLORS[p.c]; ctx.fill();
-      ctx.lineWidth = 1.5; ctx.strokeStyle = '#0a0b0d'; ctx.stroke();
-    } else {
-      ctx.fillStyle = 'rgba(10,11,13,0.85)'; ctx.fill();
-      ctx.lineWidth = 1.8; ctx.strokeStyle = COLORS[p.c]; ctx.stroke();
-    }
-  }
-
-  // misclassified (leave-one-out) markers
-  if (S.show.errors && S.memSet.size && S.cur) {
-    ctx.setLineDash([3, 3]); ctx.strokeStyle = WARN; ctx.lineWidth = 1.4; ctx.beginPath();
-    for (const p of S.points) {
-      const r = S.cur.per.get(p.id);
-      if (r && r.pred !== p.c) { const [x, y] = toPx(p.x, p.y); ctx.moveTo(x + 10, y); ctx.arc(x, y, 10, 0, Math.PI * 2); }
-    }
-    ctx.stroke(); ctx.setLineDash([]);
-  }
-
-  // neighbor rings
-  if (pr && S.show.neighbors) {
-    ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.beginPath();
-    for (const n of pr.nb) { const [x, y] = toPx(n.p.x, n.p.y); ctx.moveTo(x + 8.5, y); ctx.arc(x, y, 8.5, 0, Math.PI * 2); }
-    ctx.stroke();
-  }
-
-  // pulses for newly memorized points
-  const now = performance.now();
-  S.pulses = S.pulses.filter(pl => now - pl.t0 < PULSE_MS);
-  if (S.pulses.length) {
-    const m = byId();
-    for (const pl of S.pulses) {
-      const p = m.get(pl.id); if (!p) continue;
-      const a = (now - pl.t0) / PULSE_MS, [x, y] = toPx(p.x, p.y);
-      ctx.beginPath(); ctx.arc(x, y, 7 + 20 * a, 0, Math.PI * 2);
-      ctx.strokeStyle = COLORS[p.c]; ctx.globalAlpha = 1 - a; ctx.lineWidth = 2.5; ctx.stroke(); ctx.globalAlpha = 1;
-    }
-    requestDraw();
-  }
-
-  // query point
-  if (pr && pr.v.pred >= 0) { ctx.beginPath(); ctx.arc(qx, qy, 13, 0, Math.PI * 2); ctx.strokeStyle = COLORS[pr.v.pred]; ctx.lineWidth = 3; ctx.stroke(); }
-  starPath(ctx, qx, qy, 9, 4); ctx.fillStyle = '#fff'; ctx.fill(); ctx.strokeStyle = '#0a0b0d'; ctx.lineWidth = 1.5; ctx.stroke();
-  ctx.font = '600 11px Inter, sans-serif'; ctx.fillStyle = '#fff'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-  ctx.fillText('q', qx + 15, qy - 11);
-
-  // empty states
-  if (!S.points.length || !S.memSet.size) {
-    const msg = !S.points.length ? 'Click anywhere to add points — or press Randomize' : 'Memory is empty — press Step to start learning';
-    ctx.font = '500 13px Inter, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    const tw = ctx.measureText(msg).width + 28;
-    ctx.fillStyle = 'rgba(5,5,6,0.82)'; ctx.beginPath(); ctx.roundRect ? ctx.roundRect(w / 2 - tw / 2, 14, tw, 30, 8) : ctx.rect(w / 2 - tw / 2, 14, tw, 30); ctx.fill();
-    ctx.fillStyle = '#c3c2b7'; ctx.fillText(msg, w / 2, 29);
-  }
-}
-
-/* =====================================================================
-   Canvas interaction
-   ===================================================================== */
-let dragProbe = false;
-function localXY(e) { const r = board.cv.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; }
-function nearestPoint(px, py, maxPx) {
-  let best = null, bd = maxPx;
-  for (const p of S.points) { const [x, y] = toPx(p.x, p.y), d = Math.hypot(x - px, y - py); if (d < bd) { bd = d; best = p; } }
-  return best;
-}
-function moveProbe(px, py) {
-  const [x, y] = toData(px, py);
-  S.probe = { x: round2(clamp(x, 0, DW)), y: round2(clamp(y, 0, DH)) };
-  requestDraw(); scheduleState();
-}
-function erasePoint(px, py) {
-  const p = nearestPoint(px, py, 14);
-  if (!p) return;
-  S.points = S.points.filter(q => q !== p);
-  S.lastInfo = { type: 'erase', p };
-  recomputeAll();
-}
-function addPointUser(px, py) {
-  if (S.points.length >= MAX_POINTS) { toast(`Limit reached (${MAX_POINTS} points).`); return; }
-  const [x, y] = toData(px, py);
-  const p = addPointRaw(x, y, S.addClass);
-  S.lastInfo = { type: 'add', p };
-  recomputeAll();
-}
-
-board.cv.addEventListener('contextmenu', e => { e.preventDefault(); const [x, y] = localXY(e); erasePoint(x, y); });
-board.cv.addEventListener('pointerdown', e => {
-  if (e.button !== 0) return;
-  const [x, y] = localXY(e);
-  const tool = e.shiftKey ? 'erase' : e.altKey ? 'probe' : S.tool;
-  const [qx, qy] = toPx(S.probe.x, S.probe.y);
-  if (tool === 'probe' || (tool === 'add' && Math.hypot(qx - x, qy - y) < 12)) {
-    dragProbe = true; board.cv.setPointerCapture(e.pointerId); moveProbe(x, y);
-  } else if (tool === 'erase') erasePoint(x, y);
-  else addPointUser(x, y);
-});
-board.cv.addEventListener('pointermove', e => {
-  const [x, y] = localXY(e);
-  if (dragProbe) { moveProbe(x, y); return; }
-  const tip = $('#board-tip'), p = nearestPoint(x, y, 10);
-  if (!p) { tip.style.display = 'none'; return; }
-  const r = S.cur && S.cur.per.get(p.id), inMem = S.memSet.has(p.id);
-  tip.innerHTML = `<div style="margin-bottom:4px">${pid(p)} · class ${NAMES[p.c]}</div>
-    <div class="r">position <span>(${f2(p.x)}, ${f2(p.y)})</span></div>
-    <div class="r">in memory <span>${inMem ? 'yes' : 'not yet'}</span></div>` +
-    (r && S.memSet.size ? `<div class="r">LOO prediction <span>${r.pred < 0 ? '—' : NAMES[r.pred]} ${r.pred === p.c ? '✓' : '✗'}</span></div>
-    <div class="r">p̂(true class) <span>${f3(r.pTrue)}</span></div><div class="r">loss −ln p̂ <span>${f3(r.loss)}</span></div>` : '');
-  tip.style.display = 'block';
-  const tw = tip.offsetWidth, th = tip.offsetHeight;
-  tip.style.left = (x + 14 + tw > board.w ? x - 14 - tw : x + 14) + 'px';
-  tip.style.top = clamp(y - th / 2, 4, board.h - th - 4) + 'px';
-});
-const endDrag = () => { dragProbe = false; };
-board.cv.addEventListener('pointerup', endDrag);
-board.cv.addEventListener('pointercancel', endDrag);
-board.cv.addEventListener('pointerleave', () => { $('#board-tip').style.display = 'none'; });
-
-/* =====================================================================
-   Model state panel
-   ===================================================================== */
-const METRIC_FORMULA = {
-  euclidean: 'd(q, x) = √((q₁ − x₁)² + (q₂ − x₂)²)',
-  manhattan: 'd(q, x) = |q₁ − x₁| + |q₂ − x₂|',
-  chebyshev: 'd(q, x) = max(|q₁ − x₁|, |q₂ − x₂|)',
-};
-function calcStr(q, p) {
-  const a = `${f2(q.x)} − ${f2(p.x)}`, b = `${f2(q.y)} − ${f2(p.y)}`;
-  if (S.metric === 'manhattan') return `|${a}| + |${b}|`;
-  if (S.metric === 'chebyshev') return `max(|${a}|, |${b}|)`;
-  return `√((${a})² + (${b})²)`;
-}
-const listPts = arr => arr.length <= 4 ? arr.map(pid).join(', ') : arr.slice(0, 4).map(pid).join(', ') + ` and ${arr.length - 4} more`;
-
-function explainHTML() {
-  const I = S.lastInfo, C = S.C, N = S.points.length, m = S.memSet.size;
-  let html = '';
-  if (I.type === 'reset' || I.type === 'data') {
-    html = `<b>${I.type === 'data' ? `New dataset (${N} points). ` : ''}Model reset.</b> Memory is empty, so the model can only guess: every class gets p̂ = 1/C = 1/${C} = ${f3(1 / C)}, which gives loss ln ${C} = <b>${f3(Math.log(C))}</b>. Press <kbd>Step</kbd> to store the first example.`;
-  } else if (I.type === 'step') {
-    const p0 = I.chosen[0];
-    if (S.strategy === 'cnn' && I.why) {
-      const w = I.why[0];
-      html = `<b>Step ${I.t}.</b> ${pid(p0)} was the <b>worst mistake</b> outside memory: predicted ${cls(w.pred)} but the true class is ${cls(p0.c)} (p̂(true) = ${f3(w.pTrue)}, loss = −ln ${f3(w.pTrue)} = ${f3(w.loss)}). Condensed NN memorizes only points the current memory gets wrong.`;
-      if (I.chosen.length > 1) html += ` Also stored this step: ${listPts(I.chosen.slice(1))}.`;
-    } else {
-      html = `<b>Step ${I.t}.</b> Stored ${I.chosen.length > 1 ? listPts(I.chosen) : `${pid(p0)} = (${f2(p0.x)}, ${f2(p0.y)}), class ${cls(p0.c)},`} in memory. Classic KNN “training” is just memorizing labelled examples — nothing is optimized. The boundary now uses ${m} stored point${m === 1 ? '' : 's'}.`;
-    }
-    const d = I.after.loss - I.before.loss;
-    html += `<span class="delta">Loss ${f3(I.before.loss)} → ${f3(I.after.loss)} (<span class="${d <= 0 ? 'good' : 'bad'}">${d <= 0 ? '▼' : '▲'} ${f3(Math.abs(d))}</span>) · Error ${pct(I.before.err)} → ${pct(I.after.err)}</span>`;
-  } else if (I.type === 'back') {
-    html = `<b>Stepped back.</b> Removed the last stored batch (${listPts(I.removed)}) from memory.`;
-  } else if (I.type === 'add') {
-    html = `<b>Added ${pid(I.p)}</b> (class ${cls(I.p.c)}) to the dataset. It is hollow because the model hasn't memorized it yet. The whole loss curve was recomputed for the new dataset.`;
-  } else if (I.type === 'erase') {
-    html = `<b>Removed P${I.p.id}</b> from the dataset (and from memory if it was stored). Loss curve recomputed.`;
-  } else if (I.type === 'param') {
-    html = `<b>Hyperparameter changed: ${I.label}.</b> Memory is unchanged, but every distance, vote and prediction — and therefore the whole loss curve — was recomputed.`;
-  }
-  if (S.converged) {
-    html += S.strategy === 'random'
-      ? `<span class="conv">✓ <b>Converged.</b> All ${N} points are memorized — there is nothing left to learn.</span>`
-      : `<span class="conv">✓ <b>Converged.</b> Every point outside memory is classified correctly, using only ${m} of ${N} points (${pct(1 - m / N)} smaller memory).</span>`;
-  }
-  return html;
-}
-
-function renderMemory() {
-  const el = $('#memory'), m = byId(), C = S.C;
-  $('#mem-shape').textContent = `X ∈ ℝ^(${S.memSet.size}×2) · y ∈ {${NAMES.slice(0, C).join(',')}}^${S.memSet.size}`;
-  if (!S.memSet.size) { el.innerHTML = '<p class="muted-p">Memory is empty — the model has not seen any examples yet.</p>'; return; }
-  const last = S.batches.length;
-  let rows = '', i = 0;
-  S.batches.forEach((b, s) => b.forEach(id => {
-    const p = m.get(id); if (!p) return;
-    rows += `<tr class="${s + 1 === last ? 'new' : ''}"><td>${++i}</td><td>${s + 1}</td><td>${pid(p)}</td><td><b>${f2(p.x)}</b></td><td><b>${f2(p.y)}</b></td><td>${cls(p.c)}</td></tr>`;
-  }));
-  el.innerHTML = `<div class="scrollbox" style="max-height:170px"><table class="tbl"><thead><tr><th>row</th><th>step</th><th>point</th><th>x₁</th><th>x₂</th><th>y</th></tr></thead><tbody>${rows}</tbody></table></div>`;
-  const box = el.firstElementChild; box.scrollTop = box.scrollHeight;
-}
-
-function renderProbe() {
-  const el = $('#probe'), q = S.probe, C = S.C;
-  $('#q-coords').textContent = `q = (${f2(q.x)}, ${f2(q.y)})`;
-  if (!S.memSet.size) {
-    el.innerHTML = `<p class="muted-p">Memory is empty, so q has no neighbors. Every class gets p̂ = 1/C = ${f3(1 / C)} — a pure guess.</p>`;
-    return;
-  }
-  const { all, nb, kEff, v } = computeProbe(), wd = S.weighting === 'distance';
-  const showN = Math.min(all.length, Math.max(kEff + 3, 8));
-  let rows = '';
-  for (let i = 0; i < showN; i++) {
-    const a = all[i], isNb = i < kEff;
-    rows += `<tr class="${isNb ? 'nb' : ''}"><td>${i + 1}</td><td>${pid(a.p)}</td><td>${cls(a.p.c)}</td><td class="calc">${calcStr(q, a.p)}</td><td><b>${f3(a.d)}</b></td>${wd ? `<td>${isNb ? f3(v.w[i]) : ''}</td>` : ''}<td>${isNb ? '<span class="tag">neighbor</span>' : ''}</td></tr>`;
-  }
-  if (all.length > showN) rows += `<tr class="more"><td colspan="${wd ? 7 : 6}">… ${all.length - showN} more stored point${all.length - showN > 1 ? 's' : ''}, all farther away</td></tr>`;
-
-  const kNote = kEff < S.k ? `<p class="muted-p">Only ${kEff} point${kEff > 1 ? 's are' : ' is'} in memory, so K is effectively ${kEff}.</p>` : '';
-  let votes = '';
-  for (let c = 0; c < C; c++) {
-    const calc = wd
-      ? `v(${NAMES[c]}) = K·Σw/Σw_all = ${kEff}·${f3(v.raw[c])}/${f3(v.tw)} = ${f2(v.votes[c])}  →  p̂(${NAMES[c]}) = (${f2(v.votes[c])} + ${ALPHA}) / (${kEff} + ${C}·${ALPHA}) = ${f3(v.probs[c])}`
-      : `p̂(${NAMES[c]}) = (${v.raw[c]} votes + ${ALPHA}) / (${kEff} + ${C}·${ALPHA}) = ${v.raw[c] + ALPHA}/${kEff + C * ALPHA} = ${f3(v.probs[c])}`;
-    votes += `<div class="vrow"><span>${cls(c)} <span class="mono" style="color:var(--muted)">${wd ? f2(v.votes[c]) : v.raw[c]}</span></span><div class="vbar"><i style="width:${(v.probs[c] * 100).toFixed(1)}%;background:${COLORS[c]}"></i></div><span class="vv">${f3(v.probs[c])}</span></div><div class="vcalc">${calc}</div>`;
-  }
-  el.innerHTML = `
-    <div class="ss"><span class="n">1</span><div>
-      <h4>Compute the distance from q to every stored point</h4>
-      <div class="formula">${METRIC_FORMULA[S.metric]}</div>
-      <div class="scrollbox"><table class="tbl"><thead><tr><th>rank</th><th>point</th><th>y</th><th>calculation</th><th>d</th>${wd ? '<th>w = 1/d</th>' : ''}<th></th></tr></thead><tbody>${rows}</tbody></table></div>
-    </div></div>
-    <div class="ss"><span class="n">2</span><div>
-      <h4>Sort by distance and keep the K = ${S.k} nearest (highlighted)</h4>
-      <p class="muted-p" style="margin-top:0">They lie inside the dashed ${S.metric === 'euclidean' ? 'circle' : S.metric === 'manhattan' ? 'diamond' : 'square'} on the canvas, whose radius is the ${kEff}${['st', 'nd', 'rd'][kEff - 1] || 'th'} smallest distance d = ${f3(nb[kEff - 1].d)}.</p>${kNote}
-    </div></div>
-    <div class="ss"><span class="n">3</span><div>
-      <h4>${wd ? 'Weighted vote (closer neighbors count more), then smooth into probabilities' : 'Count the votes per class, then smooth into probabilities'}</h4>
-      ${votes}
-    </div></div>
-    <div class="ss"><span class="n">4</span><div>
-      <h4>Predict the class with the highest probability</h4>
-      <div class="predict">ŷ = argmax<sub>c</sub> p̂(c) = <span class="big">${cls(v.pred)} Class ${NAMES[v.pred]}</span> <span style="color:var(--muted)">p̂ = ${f3(v.probs[v.pred])}</span></div>
-      ${v.tie ? '<p class="muted-p">Tie! Broken by the class of the single nearest neighbor among the tied classes.</p>' : ''}
-    </div></div>`;
-}
-
-function renderLossCalc() {
-  const el = $('#losscalc'), h = S.history[S.history.length - 1], prev = S.history.length > 1 ? S.history[S.history.length - 2] : null;
-  if (!h || !h.N) { el.innerHTML = '<p class="muted-p">No data points yet.</p>'; return; }
-  let delta = '';
-  if (prev) { const d = h.loss - prev.loss; delta = `<p class="muted-p">Change vs previous step: <span class="${d <= 0 ? 'good' : 'bad'} mono">${d <= 0 ? '▼' : '▲'} ${f3(Math.abs(d))}</span></p>`; }
-  let worst = '';
-  if (S.memSet.size && S.cur) {
-    const m = byId();
-    const top = [...S.cur.per.entries()].sort((a, b) => b[1].loss - a[1].loss).slice(0, 4);
-    worst = `<p class="muted-p">Hardest points right now (highest loss):</p><div class="worst">${top.map(([id, r]) => { const p = m.get(id); return `<span>${pid(p)} true ${NAMES[p.c]} · pred ${r.pred < 0 ? '—' : NAMES[r.pred]} · ${f3(r.loss)}</span>`; }).join('')}</div>`;
-  }
-  el.innerHTML = `
-    <p class="hint" style="margin:0 0 8px">Cross-entropy: the average “surprise” −ln p̂ of the true class. Each point is predicted <b>leave-one-out</b> — from the memory <i>without itself</i>, otherwise a stored point would always vote for its own class.</p>
-    <div class="formula">L = −(1/N) · Σᵢ ln p̂(yᵢ | xᵢ)<br>&nbsp;&nbsp;= −(1/${h.N}) · (${f3(-h.sum)})<br>&nbsp;&nbsp;= <b>${f3(h.loss)}</b></div>
-    <div class="formula">Error rate = misclassified / N = ${h.wrong} / ${h.N} = <b>${pct(h.err)}</b></div>
-    ${delta}${worst}`;
-}
-
-function renderState() {
-  const N = S.points.length, m = S.memSet.size, kEff = Math.min(S.k, m);
-  $('#state-chips').innerHTML = `<span class="chip">step <b>${S.batches.length}</b></span><span class="chip">memory <b>${m}/${N}</b></span><span class="chip">K <b>${S.k}</b>${kEff < S.k && m ? ` (eff. ${kEff})` : ''}</span>`;
-  $('#explain').innerHTML = explainHTML();
-  renderMemory(); renderProbe(); renderLossCalc();
-}
-let stateRaf = 0;
-function scheduleState() { if (!stateRaf) stateRaf = requestAnimationFrame(() => { stateRaf = 0; renderProbe(); }); }
-
-/* =====================================================================
-   Loss chart (SVG)
-   ===================================================================== */
-// Round tick spacing (…0.1, 0.2, 0.25, 0.5, 1…) giving about 4 intervals
-function niceTick(v) {
-  const raw = Math.max(v, 1e-6) * 1.04 / 4, p = Math.pow(10, Math.floor(Math.log10(raw)));
-  for (const m of [1, 2, 2.5, 5, 10]) if (m * p >= raw) return m * p;
-  return 10 * p;
-}
-function niceStep(xMax) { for (const s of [1, 2, 5, 10, 20, 25, 50, 100]) if (xMax / s <= 8) return s; return 200; }
-
-function renderChart() {
-  const wrap = $('#chart'), W = wrap.clientWidth;
-  if (W < 60) return;
-  const H = 230, M = { l: 46, r: 62, t: 14, b: 30 }, iw = W - M.l - M.r, ih = H - M.t - M.b;
-  const isLoss = S.chartMetric === 'loss', hist = S.history, n = hist.length;
-  const val = d => isLoss ? d.loss : d.err;
-  const fmtY = v => isLoss ? +v.toFixed(2) + '' : +(v * 100).toFixed(1) + '%';
-  const xMax = Math.max(10, n - 1);
-  const vmax = Math.max(...hist.map(val), isLoss ? Math.log(S.C) : 0.1);
-  const tick = isLoss ? niceTick(vmax) : 0.25;   // error axis is always 0–100 %
-  const yMax = isLoss ? Math.ceil(vmax * 1.04 / tick) * tick : 1, nt = Math.round(yMax / tick);
-  const X = i => M.l + i / xMax * iw, Y = v => M.t + ih - v / yMax * ih;
-
-  let s = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="${isLoss ? 'Cross-entropy loss' : 'Error rate'} per step">
-    <defs><linearGradient id="ga" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9085e9" stop-opacity=".28"/><stop offset="1" stop-color="#9085e9" stop-opacity="0"/></linearGradient></defs>`;
-  for (let i = 0; i <= nt; i++) {
-    const v = tick * i, y = Y(v).toFixed(1);
-    s += `<line x1="${M.l}" x2="${M.l + iw}" y1="${y}" y2="${y}" class="${i ? 'grid' : 'base'}"/><text x="${M.l - 8}" y="${+y + 3.5}" text-anchor="end">${fmtY(v)}</text>`;
-  }
-  const st = niceStep(xMax);
-  for (let i = 0; i <= xMax; i += st) s += `<text x="${X(i).toFixed(1)}" y="${H - M.b + 17}" text-anchor="middle">${i}</text>`;
-  s += `<text x="${M.l + iw}" y="${H - 2}" text-anchor="end">step →</text>`;
-  if (isLoss) {
-    const yr = Y(Math.log(S.C)).toFixed(1);
-    s += `<line x1="${M.l}" x2="${M.l + iw}" y1="${yr}" y2="${yr}" class="ref"/><text x="${M.l + iw - 4}" y="${+yr - 5}" text-anchor="end" class="reflab">random guess: ln ${S.C} = ${Math.log(S.C).toFixed(3)}</text>`;
-  }
-  if (S.converged && n > 1) {
-    const xc = X(n - 1).toFixed(1);
-    s += `<line x1="${xc}" x2="${xc}" y1="${M.t}" y2="${M.t + ih}" class="conv"/><text x="${+xc - 5}" y="${M.t + 10}" text-anchor="end" style="fill:#0ca30c">converged ✓</text>`;
-  }
-  if (n) {
-    const pts = hist.map((d, i) => [X(i).toFixed(1), Y(val(d)).toFixed(1)]);
-    const line = 'M' + pts.map(p => p.join(',')).join('L');
-    if (n > 1) s += `<path d="${line}L${pts[n - 1][0]},${Y(0)}L${pts[0][0]},${Y(0)}Z" fill="url(#ga)"/><path d="${line}" class="line"/>`;
-    const [lx, ly] = pts[n - 1];
-    s += `<circle cx="${lx}" cy="${ly}" r="4.5" fill="#9085e9" stroke="#0d0e11" stroke-width="2"/><text x="${+lx + 9}" y="${+ly + 4}" class="endlab">${isLoss ? val(hist[n - 1]).toFixed(3) : pct(val(hist[n - 1]))}</text>`;
-  }
-  s += `<g id="xh" visibility="hidden"><line id="xh-l" y1="${M.t}" y2="${M.t + ih}" stroke="#8a8984" stroke-width="1"/><circle id="xh-d" r="5" fill="#9085e9" stroke="#fff" stroke-width="2"/></g></svg><div class="ctip" id="ctip"></div>`;
-  wrap.innerHTML = s;
-  S.cs = { M, iw, ih, xMax, X, Y, n, val };
-}
-
-function renderStats() {
-  const h = S.history[S.history.length - 1], h0 = S.history[0];
-  const N = S.points.length, m = S.memSet.size;
-  const best = Math.min(...S.history.map(d => d.loss));
-  $('#stats').innerHTML = `
-    <div class="stat"><div class="k">Loss</div><div class="v">${h ? h.loss.toFixed(3) : '—'}</div><div class="s" title="best ${isFinite(best) ? best.toFixed(3) : '—'}">from ${h0 ? h0.loss.toFixed(3) : '—'}</div></div>
-    <div class="stat"><div class="k">Error rate</div><div class="v">${h ? pct(h.err) : '—'}</div><div class="s">${h ? `${h.wrong} of ${h.N} wrong` : ''}</div></div>
-    <div class="stat"><div class="k">Memory</div><div class="v">${m}<span style="color:var(--muted);font-size:14px"> / ${N}</span></div><div class="s">${N ? pct(m / N) : '0%'} stored</div></div>
-    <div class="stat"><div class="k">Steps</div><div class="v">${S.batches.length}</div><div class="s">${S.converged ? 'converged ✓' : S.playing ? 'training…' : 'not converged'}</div></div>`;
-  $('#chart-caption').textContent = S.chartMetric === 'loss'
-    ? 'Each step stores more examples, so leave-one-out predictions get better and the loss falls. Small bumps are normal while memory is tiny. The dashed line is the loss of a random guess.'
-    : 'Share of points whose leave-one-out prediction is wrong. Error is not differentiable — that is why the cross-entropy loss is the main training signal.';
-  $('#hist-table').innerHTML = `<table class="tbl"><thead><tr><th>step</th><th>memory</th><th>loss</th><th>error</th></tr></thead><tbody>${
-    S.history.slice().reverse().slice(0, 300).map(d => `<tr><td>${d.step}</td><td>${d.m}/${d.N}</td><td>${d.loss.toFixed(4)}</td><td>${pct(d.err)}</td></tr>`).join('')}</tbody></table>`;
-}
-
-const chartEl = $('#chart');
-chartEl.addEventListener('pointermove', e => {
-  const cs = S.cs; if (!cs || !cs.n) return;
-  const r = chartEl.getBoundingClientRect(), mx = e.clientX - r.left;
-  const i = clamp(Math.round((mx - cs.M.l) / cs.iw * cs.xMax), 0, cs.n - 1), d = S.history[i];
-  const x = cs.X(i), y = cs.Y(cs.val(d));
-  const g = chartEl.querySelector('#xh'); if (!g) return;
-  g.setAttribute('visibility', 'visible');
-  chartEl.querySelector('#xh-l').setAttribute('x1', x); chartEl.querySelector('#xh-l').setAttribute('x2', x);
-  chartEl.querySelector('#xh-d').setAttribute('cx', x); chartEl.querySelector('#xh-d').setAttribute('cy', y);
-  const tip = chartEl.querySelector('#ctip');
-  tip.innerHTML = `<div style="margin-bottom:4px;font-weight:600">Step ${i}</div><div class="r">loss <span>${d.loss.toFixed(3)}</span></div><div class="r">error <span>${pct(d.err)}</span></div><div class="r">memory <span>${d.m} / ${d.N}</span></div>`;
-  tip.style.display = 'block';
-  const tw = tip.offsetWidth;
-  tip.style.left = (x + 14 + tw > r.width ? x - 14 - tw : x + 14) + 'px';
-});
-chartEl.addEventListener('pointerleave', () => {
-  const g = chartEl.querySelector('#xh'), tip = chartEl.querySelector('#ctip');
-  if (g) g.setAttribute('visibility', 'hidden'); if (tip) tip.style.display = 'none';
-});
-
-/* =====================================================================
-   Controls
-   ===================================================================== */
-function renderControls() {
-  $('#btn-step').disabled = S.playing || S.converged || !S.points.length;
-  $('#btn-back').disabled = S.playing || !S.batches.length;
-  $('#play-label').textContent = S.playing ? 'Pause' : 'Play until convergence';
-  $('#play-ico').innerHTML = S.playing ? '<rect x="3.5" y="3" width="3" height="10" rx=".6"/><rect x="9.5" y="3" width="3" height="10" rx=".6"/>' : '<path d="M1.5 3l6.5 5-6.5 5zM8 3l6.5 5L8 13z"/>';
-  $('#btn-play').disabled = !S.playing && (S.converged || !S.points.length);
-  const pill = $('#status-pill');
-  pill.className = 'pill' + (S.playing ? ' run' : S.converged ? ' done' : '');
-  pill.textContent = S.playing ? 'Training…' : S.converged ? 'Converged' : S.batches.length ? 'Paused' : 'Idle';
-  $('#data-meta').textContent = `${S.points.length} points · ${S.C} classes`;
-  renderStats();
+  r.history = lossHistory(r.memFull, r.val, state.hp, C, state.hp.B, r.history.length - 1);
+  r.histLabel = hpLabel();
+  if (r.evalRes) r.evalRes = evaluate(prefix(r.memFull, r.history[r.history.length - 1].memSize), r.val, state.hp, C);
+  if (r.query) r.spot = computeSpot();
+  r.bndN = r.n;
+  renderAll();
 }
 
 function renderAll() {
-  requestDraw(); renderState(); renderChart(); renderControls();
+  if (!state.run) return;
+  updateControls();
+  renderModelState();
+  renderLoss();
+  requestRender();
 }
 
-function setFill(inp) { inp.style.setProperty('--fill', ((inp.value - inp.min) / (inp.max - inp.min) * 100) + '%'); }
-function bindRange(id, get, set, fmt, evt = 'input') {
-  const inp = $('#' + id), out = $('#' + id + '-v');
-  inp.value = get(); setFill(inp); if (out) out.textContent = fmt(get());
-  inp.addEventListener('input', () => { setFill(inp); if (out) out.textContent = fmt(+inp.value); if (evt === 'input') set(+inp.value); });
-  if (evt === 'change') inp.addEventListener('change', () => set(+inp.value));
+/* =====================================================================
+   5. RENDER: DATA CANVAS
+   ===================================================================== */
+const view = { w: 0, h: 0, padL: 30, padR: 10, padT: 10, padB: 24, pw: 0, ph: 0 };
+const cv = $("#cv");
+let cctx = null;
+const toPx = (x1, x2) => [view.padL + (x1 / LIMITS.domain) * view.pw, view.padT + (1 - x2 / LIMITS.domain) * view.ph];
+const toData = (px, py) => [((px - view.padL) / view.pw) * LIMITS.domain, (1 - (py - view.padT) / view.ph) * LIMITS.domain];
+
+function resizeDataCanvas() {
+  const wrap = $("#cvwrap");
+  const size = Math.max(240, Math.min(600, wrap.clientWidth || 600));
+  // the plot area is square so that equal data distances look equal on screen (circles stay circles)
+  view.pw = view.ph = size - view.padL - view.padR;
+  view.w = size;
+  view.h = view.padT + view.ph + view.padB;
+  cctx = fitCanvas(cv, view.w, view.h);
+  requestRender();
 }
-function bindSeg(id, get, set) {
-  const seg = $('#' + id);
-  const sync = () => seg.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === String(get()))));
-  seg.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; set(b.dataset.v); sync(); });
-  sync();
-  return sync;
+
+let renderQueued = false;
+function requestRender() {
+  if (renderQueued) return;
+  renderQueued = true;
+  requestAnimationFrame(() => { renderQueued = false; drawData(); });
 }
-function updateHints() {
-  $('#k-hint').textContent = (S.k % 2 === 0 ? 'Even K can tie — ties go to the nearest neighbor. ' : '') + 'Small K → wiggly boundary (overfits noise). Large K → smoother boundary (may underfit).';
-  $('#metric-hint').textContent = METRIC_FORMULA[S.metric];
-  $('#weight-hint').textContent = S.weighting === 'uniform' ? 'Each of the K neighbors casts exactly 1 vote.' : 'Closer neighbors count more: weight w = 1/d.';
-  $('#strategy-hint').textContent = S.strategy === 'random'
-    ? 'Classic KNN: store every training example, a few per step, in random order. Converges when all points are memorized.'
-    : 'Condensed NN (Hart, 1968): each step stores only the point the current memory misclassifies worst. Converges when every remaining point is classified correctly — usually with far fewer stored points.';
-  $$('#class-pick button').forEach(b => { b.hidden = +b.dataset.c >= S.C; b.setAttribute('aria-pressed', String(+b.dataset.c === S.addClass)); });
-  board.cv.className = 't-' + S.tool;
+
+function drawGrid(ctx) {
+  ctx.save();
+  ctx.font = "11px " + getComputedStyle(document.body).getPropertyValue("--mono");
+  ctx.fillStyle = "#8b98a9"; ctx.strokeStyle = "#ffffff12"; ctx.lineWidth = 1;
+  for (let v = 0; v <= 10; v++) {
+    const [x] = toPx(v, 0), [, y] = toPx(0, v);
+    if (state.ui.toggles.grid) {
+      ctx.beginPath(); ctx.moveTo(x, view.padT); ctx.lineTo(x, view.padT + view.ph); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(view.padL, y); ctx.lineTo(view.padL + view.pw, y); ctx.stroke();
+    }
+    ctx.strokeStyle = "#8b98a966";
+    ctx.beginPath(); ctx.moveTo(x, view.padT + view.ph); ctx.lineTo(x, view.padT + view.ph + 4); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(view.padL - 4, y); ctx.lineTo(view.padL, y); ctx.stroke();
+    ctx.strokeStyle = "#ffffff12";
+    if (v % 2 === 0) {
+      ctx.textAlign = "center"; ctx.fillText(v, x, view.padT + view.ph + 16);
+      ctx.textAlign = "right"; ctx.fillText(v, view.padL - 7, y + 4);
+    }
+  }
+  ctx.fillStyle = "#8b98a9aa";
+  ctx.textAlign = "left"; ctx.fillText("x₂", view.padL + 6, view.padT + 14);
+  ctx.textAlign = "right"; ctx.fillText("x₁", view.padL + view.pw - 6, view.padT + view.ph - 8);
+  ctx.restore();
 }
-function $$(s) { return [...document.querySelectorAll(s)]; }
 
-function newData() {
-  stopPlay();
-  generate();
-  S.addClass = Math.min(S.addClass, S.C - 1);
-  updateHints();
-  resetModel({ type: 'data' });
+/** `pop` = 0..1 progress of the "just stored" animation (1 = finished). */
+function drawTrainPoint(ctx, p, memorized, pop = 1) {
+  const [x, y] = toPx(p.x1, p.x2), col = CLASS_COLORS[p.cls];
+  const grow = 1 + 1.4 * (1 - pop) * (1 - pop);
+  if (pop < 1) { // expanding halo behind a point that was just stored
+    ctx.beginPath(); ctx.arc(x, y, 5 + 14 * pop, 0, Math.PI * 2);
+    ctx.lineWidth = 2; ctx.strokeStyle = col; ctx.globalAlpha = 1 - pop; ctx.stroke(); ctx.globalAlpha = 1;
+  }
+  ctx.beginPath(); ctx.arc(x, y, 5 * grow, 0, Math.PI * 2);
+  if (memorized) {
+    ctx.fillStyle = col; ctx.fill();
+    ctx.lineWidth = 1; ctx.strokeStyle = "#ffffff"; ctx.stroke();
+  } else {
+    ctx.globalAlpha = 0.3; ctx.fillStyle = col; ctx.fill(); ctx.globalAlpha = 1;
+    ctx.lineWidth = 1; ctx.strokeStyle = "#8b98a9"; ctx.stroke();
+  }
 }
-function paramChanged(label) { updateHints(); S.lastInfo = { type: 'param', label }; recomputeAll(); }
+function drawValPoint(ctx, p) {
+  const [x, y] = toPx(p.x1, p.x2), s = 6.5;
+  ctx.beginPath(); ctx.moveTo(x, y - s); ctx.lineTo(x + s, y); ctx.lineTo(x, y + s); ctx.lineTo(x - s, y); ctx.closePath();
+  ctx.fillStyle = "#0a0d13"; ctx.fill();
+  ctx.lineWidth = 2; ctx.strokeStyle = CLASS_COLORS[p.cls]; ctx.stroke();
+}
 
-$('#dataset').value = S.dataset;
-$('#dataset').addEventListener('change', e => { S.dataset = e.target.value; newData(); });
-bindSeg('seg-C', () => S.C, v => { S.C = +v; newData(); });
-bindRange('perClass', () => S.perClass, v => { S.perClass = v; newData(); }, v => v, 'change');
-bindRange('noise', () => S.noise, v => { S.noise = v; newData(); }, v => (+v).toFixed(2), 'change');
-$('#btn-random').addEventListener('click', newData);
-$('#btn-clear').addEventListener('click', () => { stopPlay(); S.points = []; resetModel(); });
-$('#class-pick').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; S.addClass = +b.dataset.c; if (S.tool !== 'add') { S.tool = 'add'; syncTool(); } updateHints(); });
-const syncTool = bindSeg('seg-tool', () => S.tool, v => { S.tool = v; updateHints(); });
+function drawData() {
+  if (!cctx) return;
+  const ctx = cctx;
+  ctx.clearRect(0, 0, view.w, view.h);
+  drawGrid(ctx);
+  drawBoundaryLayer(ctx);
+  const run = state.run, mem = memorizedSet();
+  const popT = run && !reducedMotion() ? clamp((performance.now() - run.popStart) / 500, 0, 1) : 1;
+  const popIds = popT < 1 ? new Set(run.lastAdded) : null;
+  // training points first, validation on top
+  for (const p of state.data.points) if (p.set === "train") drawTrainPoint(ctx, p, mem.has(p.id), popIds && popIds.has(p.id) ? popT : 1);
+  for (const p of state.data.points) if (p.set === "val") drawValPoint(ctx, p);
+  if (state.ui.toggles.indices) {
+    ctx.font = "9px " + getComputedStyle(document.body).getPropertyValue("--mono");
+    ctx.fillStyle = "#e6edf3"; ctx.textAlign = "left";
+    for (const p of state.data.points) { const [x, y] = toPx(p.x1, p.x2); ctx.fillText(p.id, x + 7, y - 6); }
+  }
+  // hover highlight
+  const hp = state.data.points.find((p) => p.id === state.ui.hoverId);
+  if (hp) {
+    const [x, y] = toPx(hp.x1, hp.x2);
+    ctx.beginPath(); ctx.arc(x, y, 10, 0, Math.PI * 2);
+    ctx.lineWidth = 2; ctx.strokeStyle = "#7c9cff"; ctx.stroke();
+  }
+  drawOverlays(ctx);
+  // eraser brush cursor
+  const m = state.ui.mouse;
+  if (state.ui.tool === "erase" && m) {
+    ctx.beginPath(); ctx.arc(m.x, m.y, state.ui.brush, 0, Math.PI * 2);
+    ctx.setLineDash([4, 4]); ctx.lineWidth = 1.5; ctx.strokeStyle = "#ff6b6b"; ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = "#ff6b6b18"; ctx.fill();
+  }
+  if (needsAnimation()) requestRender();
+}
 
-$('#btn-step').addEventListener('click', () => step(false));
-$('#btn-back').addEventListener('click', stepBack);
-$('#btn-play').addEventListener('click', play);
-$('#btn-reset').addEventListener('click', () => resetModel());
-bindRange('speed', () => S.speed, v => { S.speed = v; }, v => `${v} ms / step`);
-bindRange('k', () => S.k, v => { if (v !== S.k) { S.k = v; paramChanged(`K = ${v}`); } }, v => v);
-bindRange('batch', () => S.batch, v => { S.batch = v; }, v => v);
-bindSeg('seg-metric', () => S.metric, v => { S.metric = v; paramChanged(`metric = ${v}`); });
-bindSeg('seg-weight', () => S.weighting, v => { S.weighting = v; paramChanged(`weighting = ${v}`); });
-bindSeg('seg-strategy', () => S.strategy, v => { if (v !== S.strategy) { S.strategy = v; updateHints(); resetModel(); } });
-bindSeg('seg-chart', () => S.chartMetric, v => { S.chartMetric = v; renderChart(); renderStats(); });
+/* ---- decision boundary (offscreen, recomputed only when memory / hyperparameters change) ---- */
+const bnd = { key: "", cur: null, prev: null, fadeStart: 0 };
+const CLASS_RGB = CLASS_COLORS.map((h) => { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; });
+const invalidateBoundary = () => { bnd.key = ""; };
 
-[['boundary', 'tg-boundary'], ['confidence', 'tg-confidence'], ['neighbors', 'tg-neighbors'], ['errors', 'tg-errors']].forEach(([key, id]) => {
-  const el = $('#' + id); el.checked = S.show[key];
-  el.addEventListener('change', () => { S.show[key] = el.checked; if (key === 'confidence') buildShade(); requestDraw(); });
-});
+function boundaryKey() {
+  const r = state.run, h = state.hp, u = state.ui;
+  return [r.id, r.bndN, h.K, h.metric, h.p, h.weighting, h.alpha, u.gridRes, u.toggles.confidence, state.data.classCount,
+    state.data.version, view.pw, window.devicePixelRatio].join("|");
+}
+function buildBoundaryCanvas() {
+  const r = state.run, C = state.data.classCount, res = state.ui.gridRes, conf = state.ui.toggles.confidence;
+  const g = boundaryGrid(prefix(r.memFull, r.bndN), res, state.hp, C);
+  const dpr = window.devicePixelRatio || 1;
+  const off = document.createElement("canvas");
+  off.width = Math.round(view.pw * dpr); off.height = Math.round(view.ph * dpr);
+  const small = document.createElement("canvas"); small.width = small.height = res;
+  const sctx = small.getContext("2d"), img = sctx.createImageData(res, res);
+  for (let j = 0; j < res; j++) {
+    for (let i = 0; i < res; i++) {
+      const o = j * res + i, px = ((res - 1 - j) * res + i) * 4, c = g.pred[o];
+      if (c === 255) { img.data.set([139, 152, 169, 26], px); continue; } // empty memory: neutral grey
+      const a = conf ? 0.12 + 0.45 * ((g.conf[o] - 1 / C) / (1 - 1 / C)) : 0.3;
+      img.data.set([...CLASS_RGB[c], Math.round(255 * clamp(a, 0, 1))], px);
+    }
+  }
+  sctx.putImageData(img, 0, 0);
+  const octx = off.getContext("2d");
+  octx.imageSmoothingEnabled = true;
+  octx.drawImage(small, 0, 0, off.width, off.height);
+  if (r.bndN > 0) { // thin brighter line where neighbouring cells disagree = the actual boundary
+    const cs = off.width / res;
+    octx.beginPath();
+    for (let j = 0; j < res; j++) {
+      for (let i = 0; i < res; i++) {
+        const c = g.pred[j * res + i], x = i * cs, y = (res - 1 - j) * cs;
+        if (i + 1 < res && g.pred[j * res + i + 1] !== c) { octx.moveTo((i + 1) * cs, y); octx.lineTo((i + 1) * cs, y + cs); }
+        if (j + 1 < res && g.pred[(j + 1) * res + i] !== c) { octx.moveTo(x, y); octx.lineTo(x + cs, y); }
+      }
+    }
+    octx.strokeStyle = "rgba(255,255,255,0.6)"; octx.lineWidth = 1.2 * dpr; octx.stroke();
+  }
+  return off;
+}
+function drawBoundaryLayer(ctx) {
+  if (!state.ui.toggles.boundary || !state.run) return;
+  const key = boundaryKey();
+  if (key !== bnd.key) {
+    const next = buildBoundaryCanvas();
+    if (bnd.cur && !reducedMotion()) { bnd.prev = bnd.cur; bnd.fadeStart = performance.now(); } else bnd.prev = null;
+    bnd.cur = next; bnd.key = key;
+  }
+  const t = bnd.prev ? clamp((performance.now() - bnd.fadeStart) / 250, 0, 1) : 1; // ~250 ms cross-fade
+  if (t >= 1) bnd.prev = null;
+  if (bnd.prev) ctx.drawImage(bnd.prev, view.padL, view.padT, view.pw, view.ph);
+  ctx.globalAlpha = t;
+  ctx.drawImage(bnd.cur, view.padL, view.padT, view.pw, view.ph);
+  ctx.globalAlpha = 1;
+}
 
-document.addEventListener('keydown', e => {
-  if (e.target.closest && e.target.closest('input, select, textarea')) return;
-  if (e.ctrlKey || e.metaKey || e.altKey) return;
-  if (e.key === 'ArrowRight') { e.preventDefault(); if (!S.playing) step(false); }
-  else if (e.key === 'ArrowLeft') { e.preventDefault(); if (!S.playing) stepBack(); }
-  else if (e.key === ' ' && !e.target.closest('button')) { e.preventDefault(); play(); }
-});
+/* ---- per-sub-step overlays: lines, K-ball, ranks, vote badge, ✓/✗ ---- */
+const fx = { floaters: [] };
+function spawnStoredFloater(ids) {
+  if (reducedMotion()) return;
+  const pts = state.data.points.filter((p) => ids.includes(p.id));
+  if (!pts.length) return;
+  fx.floaters.push({
+    x1: pts.reduce((s, p) => s + p.x1, 0) / pts.length, x2: pts.reduce((s, p) => s + p.x2, 0) / pts.length,
+    text: `+${ids.length} stored`, start: performance.now(),
+  });
+}
+function needsAnimation() {
+  const r = state.run;
+  if (reducedMotion() || !r) return bnd.prev !== null && !reducedMotion();
+  const now = performance.now();
+  fx.floaters = fx.floaters.filter((f) => now - f.start < 1300);
+  return (r.query && r.status !== "converged" && r.phase >= 0) || now - r.popStart < 520 || fx.floaters.length > 0 || bnd.prev !== null;
+}
+const pulse = () => (reducedMotion() ? 0.5 : 0.5 + 0.5 * Math.sin(performance.now() / 260));
 
-new ResizeObserver(resizeBoard).observe($('#board-wrap'));
-new ResizeObserver(() => renderChart()).observe(chartEl);
+/** Outline of the K-radius "ball" of the active metric (circle, diamond, square, ...). */
+function ballPath(ctx, cx, cy, rData, metric, p) {
+  const r = rData * (view.pw / LIMITS.domain);
+  ctx.beginPath();
+  if (metric === "euclidean") { ctx.arc(cx, cy, r, 0, Math.PI * 2); return; }
+  const N = 120;
+  for (let i = 0; i <= N; i++) {
+    const th = (2 * Math.PI * i) / N, c = Math.cos(th), s = Math.sin(th);
+    const nrm = metric === "manhattan" ? Math.abs(c) + Math.abs(s)
+      : metric === "chebyshev" ? Math.max(Math.abs(c), Math.abs(s))
+      : Math.pow(Math.pow(Math.abs(c), p) + Math.pow(Math.abs(s), p), 1 / p);
+    const x = cx + (r * c) / nrm, y = cy - (r * s) / nrm;
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+}
+function outlinedText(ctx, text, x, y, color = "#fff") {
+  ctx.lineWidth = 3; ctx.strokeStyle = "#07090c"; ctx.strokeText(text, x, y);
+  ctx.fillStyle = color; ctx.fillText(text, x, y);
+}
+function drawBadge(ctx, x, y, ok) {
+  ctx.beginPath(); ctx.arc(x, y, 5, 0, Math.PI * 2);
+  ctx.fillStyle = ok ? "#3ddc97" : "#ff6b6b"; ctx.fill();
+  ctx.fillStyle = "#07090c"; ctx.font = "bold 8px sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.fillText(ok ? "✓" : "✗", x, y + 0.5); ctx.textBaseline = "alphabetic";
+}
 
-/* ---------- boot ---------- */
-generate();
-updateHints();
-resetModel();
-})();
+function drawValidationBadges(ctx) {
+  const r = state.run;
+  if (!r.evalRes || !r.val.n || r.evalRes.preds.length !== r.val.n) return;
+  const byId = new Map(state.data.points.map((p) => [p.id, p]));
+  for (let j = 0; j < r.val.n; j++) {
+    const p = byId.get(r.val.ids[j]);
+    if (!p) continue;
+    const [x, y] = toPx(p.x1, p.x2);
+    drawBadge(ctx, x + 8, y - 8, r.evalRes.preds[j] === r.val.y[j]);
+  }
+}
+
+function drawSpotlight(ctx) {
+  const r = state.run, hp = state.hp, tg = state.ui.toggles;
+  if (!r.query || !r.spot || r.phase < 0) return;
+  const q = r.query, sp = r.spot, ph = r.phase, mem = r.memFull, nb = sp.nb, k = nb.k;
+  const [qx, qy] = toPx(q.x1, q.x2), el = performance.now() - r.phaseStart, pl = pulse();
+  const nbSet = new Set(nb.nbIdx);
+  const dmin = sp.d[sp.order[0]], dmax = sp.d[sp.order[sp.order.length - 1]];
+  const lineA = (d) => 0.07 + 0.5 * (1 - (d - dmin) / (dmax - dmin + 1e-9)); // closer = more opaque
+  ctx.save();
+  ctx.beginPath(); ctx.rect(view.padL, view.padT, view.pw, view.ph); ctx.clip();
+  // K-radius shape
+  if (tg.circle && ph >= SORT && ph <= VOTE) {
+    ballPath(ctx, qx, qy, nb.nbD[k - 1], hp.metric, hp.p);
+    ctx.fillStyle = "rgba(255,255,255,0.05)"; ctx.fill();
+    ctx.setLineDash([6, 5]); ctx.lineWidth = 1.5; ctx.strokeStyle = "rgba(255,255,255,0.7)"; ctx.stroke(); ctx.setLineDash([]);
+  }
+  if (tg.lines && ph >= DISTANCE && ph <= VOTE) {
+    ctx.lineWidth = 1;
+    const fade = ph === DISTANCE ? 1 : ph === SORT && !reducedMotion() ? 1 - clamp(el / 450, 0, 1) : 0;
+    if (fade > 0) {
+      for (let i = 0; i < r.n; i++) {
+        if (ph !== DISTANCE && nbSet.has(i)) continue;
+        const [x, y] = toPx(mem.x1[i], mem.x2[i]);
+        ctx.strokeStyle = `rgba(230,237,243,${(lineA(sp.d[i]) * fade).toFixed(3)})`;
+        ctx.beginPath(); ctx.moveTo(qx, qy); ctx.lineTo(x, y); ctx.stroke();
+      }
+    }
+    if (ph >= SORT) {
+      ctx.font = "bold 11px " + getComputedStyle(document.body).getPropertyValue("--mono"); ctx.textAlign = "center";
+      for (let j = k - 1; j >= 0; j--) {
+        const i = nb.nbIdx[j], [x, y] = toPx(mem.x1[i], mem.x2[i]), col = CLASS_COLORS[mem.y[i]];
+        ctx.lineWidth = 2.5; ctx.strokeStyle = col; ctx.beginPath(); ctx.moveTo(qx, qy); ctx.lineTo(x, y); ctx.stroke();
+        if (ph === VOTE) { ctx.lineWidth = 2; ctx.globalAlpha = 0.4 + 0.6 * pl; ctx.beginPath(); ctx.arc(x, y, 9 + 3 * pl, 0, Math.PI * 2); ctx.stroke(); ctx.globalAlpha = 1; }
+        outlinedText(ctx, String(j + 1), x + 9, y - 8);
+      }
+    }
+    // distance of the hovered stored point
+    const hi = state.ui.hoverId != null ? mem.ids.indexOf(state.ui.hoverId) : -1;
+    if (hi >= 0 && hi < r.n) {
+      const [x, y] = toPx(mem.x1[hi], mem.x2[hi]);
+      ctx.font = "11px " + getComputedStyle(document.body).getPropertyValue("--mono"); ctx.textAlign = "center";
+      outlinedText(ctx, `d = ${sp.d[hi].toFixed(3)}`, (qx + x) / 2, (qy + y) / 2 - 6, "#ffe9b0");
+    }
+  }
+  ctx.restore();
+  // the query itself
+  const done = ph >= VOTE, fill = done ? CLASS_COLORS[nb.pred] : "#0a0d13";
+  ctx.beginPath(); ctx.arc(qx, qy, 13 + 3 * pl, 0, Math.PI * 2);
+  ctx.lineWidth = 2; ctx.strokeStyle = `rgba(124,156,255,${(0.45 + 0.5 * pl).toFixed(2)})`; ctx.stroke();
+  ctx.beginPath();
+  if (q.kind === "val") { const s = 8; ctx.moveTo(qx, qy - s); ctx.lineTo(qx + s, qy); ctx.lineTo(qx, qy + s); ctx.lineTo(qx - s, qy); ctx.closePath(); }
+  else ctx.arc(qx, qy, 6, 0, Math.PI * 2);
+  ctx.fillStyle = fill; ctx.fill();
+  ctx.lineWidth = 2; ctx.strokeStyle = q.kind === "val" ? CLASS_COLORS[q.cls] : "#fff"; ctx.stroke();
+  if (done) { // vote badge + correctness mark
+    if (q.kind === "val") drawBadge(ctx, qx + 11, qy - 11, nb.pred === q.cls);
+    const C = state.data.classCount;
+    const segs = Array.from({ length: C }, (_, c) => ({ c, t: `${CLASS_LETTERS[c]} ${nb.scores[c] % 1 === 0 ? nb.scores[c] : nb.scores[c].toFixed(2)}` }));
+    ctx.font = "bold 11px " + getComputedStyle(document.body).getPropertyValue("--mono");
+    const w = segs.reduce((s, g) => s + ctx.measureText(g.t).width + 10, 8);
+    const bx = clamp(qx + 16, 2, view.w - w - 2), by = clamp(qy - 36, 2, view.h - 24);
+    ctx.fillStyle = "#0a0d13ee"; ctx.strokeStyle = "#3a4a66"; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.roundRect(bx, by, w, 20, 6); ctx.fill(); ctx.stroke();
+    ctx.textAlign = "left"; let x = bx + 8;
+    for (const g of segs) { ctx.fillStyle = CLASS_COLORS[g.c]; ctx.fillText(g.t, x, by + 14); x += ctx.measureText(g.t).width + 10; }
+  }
+}
+
+function drawFloaters(ctx) {
+  const now = performance.now();
+  ctx.font = "bold 12px " + getComputedStyle(document.body).getPropertyValue("--mono"); ctx.textAlign = "center";
+  for (const f of fx.floaters) {
+    const t = clamp((now - f.start) / 1200, 0, 1), [x, y] = toPx(f.x1, f.x2);
+    ctx.globalAlpha = 1 - t;
+    outlinedText(ctx, f.text, clamp(x, 30, view.w - 30), y - 14 - 26 * t, "#3ddc97");
+    ctx.globalAlpha = 1;
+  }
+}
+
+/* ---- probe tool: free query point with live prediction (does not touch the model or the loss) ---- */
+let probeDrag = false, probeCardKey = "";
+function setProbe(m) {
+  const [x1, x2] = toData(m.x, m.y);
+  state.ui.probe = { x1: clamp(x1, 0, LIMITS.domain), x2: clamp(x2, 0, LIMITS.domain) };
+  requestRender();
+}
+function probePointer(m, ev, kind) {
+  if (kind === "down") {
+    const p = nearestPoint(m.x, m.y, 10);
+    if (p && p.set === "val") { // clicking a validation point pins it as the spotlight query
+      state.ui.pinnedId = p.id; state.hp.spotlightMode = "pinned"; $("#hSpot").value = "pinned";
+      toast(`Pinned validation point #${p.id} as the spotlight query.`);
+      applyPinnedNow(); requestRender();
+    } else if (inPlot(m)) { probeDrag = true; setProbe(m); }
+  } else if (kind === "move" && probeDrag && inPlot(m)) setProbe(m);
+}
+function drawProbeOverlay(ctx) {
+  const pr = state.ui.probe, card = $("#probeCard");
+  if (!pr) { if (!card.hidden) card.hidden = true; return; }
+  const r = state.run, C = state.data.classCount, hp = state.hp, tg = state.ui.toggles;
+  const mem = prefix(r.memFull, r.n), res = knnPredict(mem, pr.x1, pr.x2, hp, C), [px, py] = toPx(pr.x1, pr.x2);
+  ctx.save();
+  ctx.beginPath(); ctx.rect(view.padL, view.padT, view.pw, view.ph); ctx.clip();
+  if (mem.n > 0) {
+    if (tg.circle) {
+      ballPath(ctx, px, py, res.nbD[res.k - 1], hp.metric, hp.p);
+      ctx.setLineDash([6, 5]); ctx.lineWidth = 1.5; ctx.strokeStyle = "rgba(255,255,255,0.55)"; ctx.stroke(); ctx.setLineDash([]);
+    }
+    if (tg.lines) {
+      ctx.lineWidth = 1.6; ctx.globalAlpha = 0.85;
+      for (let j = 0; j < res.k; j++) {
+        const i = res.nbIdx[j], [x, y] = toPx(mem.x1[i], mem.x2[i]);
+        ctx.strokeStyle = CLASS_COLORS[mem.y[i]]; ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(x, y); ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+    }
+  }
+  ctx.restore();
+  ctx.save();
+  ctx.shadowColor = "#ffffff"; ctx.shadowBlur = 10; ctx.strokeStyle = "#fff"; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(px - 10, py); ctx.lineTo(px + 10, py); ctx.moveTo(px, py - 10); ctx.lineTo(px, py + 10); ctx.stroke();
+  if (mem.n > 0) { ctx.beginPath(); ctx.arc(px, py, 4, 0, Math.PI * 2); ctx.fillStyle = CLASS_COLORS[res.pred]; ctx.fill(); }
+  ctx.restore();
+  // floating prediction card
+  const key = [pr.x1.toFixed(3), pr.x2.toFixed(3), r.n, hp.K, hp.metric, hp.p, hp.weighting, hp.alpha].join("|");
+  if (key !== probeCardKey || card.hidden) {
+    probeCardKey = key;
+    card.innerHTML = mem.n === 0
+      ? `<div class="pc-t">Probe (${fmt(pr.x1)}, ${fmt(pr.x2)})</div><div class="muted">Memory is empty — every class has p = 1/${C}.</div>`
+      : `<div class="pc-t">Probe (${fmt(pr.x1)}, ${fmt(pr.x2)}) → class ${CLASS_LETTERS[res.pred]}</div>` +
+        Array.from({ length: C }, (_, c) => `<div class="pc-r">${cb(c)}<span class="pc-bar" style="width:${(res.probs[c] * 90).toFixed(0)}px;background:${CLASS_COLORS[c]}"></span>${res.probs[c].toFixed(3)}</div>`).join("");
+    card.hidden = false;
+  }
+  const cw = card.offsetWidth, ch = card.offsetHeight;
+  card.style.left = clamp(px + 16, 4, Math.max(4, view.w - cw - 4)) + "px";
+  card.style.top = (py + 16 + ch > view.h - 4 ? Math.max(4, py - ch - 16) : py + 16) + "px";
+}
+
+function drawOverlays(ctx) {
+  if (!state.run) return;
+  drawValidationBadges(ctx);
+  drawSpotlight(ctx);
+  drawProbeOverlay(ctx);
+  drawFloaters(ctx);
+}
+
+/* ---- hit testing ---- */
+function nearestPoint(px, py, maxR = 11) {
+  let best = null, bd = maxR * maxR;
+  for (const p of state.data.points) {
+    const [x, y] = toPx(p.x1, p.x2), d = (x - px) ** 2 + (y - py) ** 2;
+    if (d <= bd) { bd = d; best = p; }
+  }
+  return best;
+}
+function tooltipText(p) {
+  const kind = p.set === "train" ? "train · " + (memorizedSet().has(p.id) ? "memorized" : "not memorized") : "validation";
+  return `#${p.id} · class ${CLASS_LETTERS[p.cls]} · ${kind} · (${fmt(p.x1)}, ${fmt(p.x2)})`;
+}
+
+/* =====================================================================
+   6. RENDER: MODEL STATE
+   ===================================================================== */
+const SUBDIGITS = "₀₁₂₃₄₅₆₇₈₉";
+const subs = (n) => String(n).split("").map((d) => SUBDIGITS[+d]).join("");
+const cb = (c) => `<span class="cl" style="background:${CLASS_COLORS[c]}">${CLASS_LETTERS[c]}</span>`;
+const SHAPE = { euclidean: "circle", manhattan: "diamond", chebyshev: "square", minkowski: "rounded shape" };
+const METRIC_NAME = { euclidean: "Euclidean", manhattan: "Manhattan", chebyshev: "Chebyshev", minkowski: "Minkowski" };
+
+function renderStepper() {
+  const r = state.run, hp = state.hp;
+  $("#stepper").innerHTML = SUBSTEPS.map((s, i) => {
+    const cur = r.phase === i, done = i < r.phase || (r.phase === EVALUATE && i === EVALUATE);
+    return `<div class="st ${cur ? "cur" : ""} ${done ? "done" : ""}"><span class="n">${i + 1}</span>${s}</div>`;
+  }).join("");
+  $("#statusLine").textContent =
+    `Epoch ${r.epoch} / ${r.T} · |M| = ${r.n} stored · K = ${hp.K} · ${METRIC_NAME[hp.metric]}${hp.metric === "minkowski" ? " (p=" + hp.p + ")" : ""} · ${hp.weighting === "distance" ? "Distance-weighted" : "Uniform"}`;
+}
+
+function renderBanner() {
+  const r = state.run, el = $("#banner"), val = r.val.n > 0;
+  const last = r.history[r.history.length - 1];
+  el.className = "banner";
+  if (r.status === "converged") {
+    const stats = val ? ` Validation loss ${fmt(last.loss, 3)}, accuracy ${pct(1 - last.error)}.` : "";
+    el.textContent = r.convReason === "early"
+      ? `Early stop at epoch ${r.convEpoch} — loss changed by less than ε = ${state.hp.eps} for ${state.hp.patience} epochs in a row (${r.n} of ${r.N} points memorized).${stats}`
+      : `Converged at epoch ${r.convEpoch} — all ${r.N} training points memorized.${stats}`;
+    el.hidden = false;
+  } else if (r.N === 0) {
+    el.className = "banner warn"; el.textContent = "No training points yet. Add some on the canvas or generate a dataset."; el.hidden = false;
+  } else if (!val) {
+    el.className = "banner warn"; el.textContent = "Add validation points or regenerate data with a validation ratio > 0."; el.hidden = false;
+  } else el.hidden = true;
+}
+
+/** Plain-English card + formula with the real numbers of the spotlight query. */
+function renderExplain() {
+  const r = state.run, hp = state.hp, C = state.data.classCount, el = $("#explain");
+  const f2 = (v) => v.toFixed(2), f3 = (v) => v.toFixed(3);
+  const q = r.query, sp = r.spot, mem = r.memFull;
+  const qDesc = q ? `q = (${f2(q.x1)}, ${f2(q.x2)})` : "";
+  const qWho = !q ? "" : q.kind === "val" ? `validation point #${q.id} (true class ${CLASS_LETTERS[q.cls]})` : q.kind === "train" ? `training point #${q.id}` : "your probe";
+  let title = "Ready", body = "";
+  if (r.phase < 0) {
+    body = `<p>Press <b>⏭ Step</b> to run the first sub-step. Every epoch repeats five sub-steps: <b>memorize</b> ${hp.B} new training point${hp.B > 1 ? "s" : ""}, then follow one <b>spotlight query</b> through <b>distance</b>, <b>sort &amp; select K</b> and <b>vote</b>, and finally <b>evaluate</b> the whole validation set.</p>
+      <p class="why">Epoch 0: the memory is empty, so every class has probability 1/${C} and the loss is ln ${C} = ${f3(Math.log(C))}.</p>`;
+  } else if (r.phase === MEMORIZE) {
+    title = "1 · Memorize";
+    const ids = r.lastAdded, shown = ids.slice(0, 4).map((id) => `(x${subs(id)}, y${subs(id)})`).join(", ") + (ids.length > 4 ? ", …" : "");
+    body = `<p>The model stores ${ids.length} new training point${ids.length > 1 ? "s" : ""}. KNN does no other learning: memory grew from ${r.prevN} to ${r.n} point${r.n > 1 ? "s" : ""}.</p>
+      <div class="fx">M ← M ∪ {${shown}}</div>
+      <p class="why">Spotlight query for this epoch: ${qWho} at ${qDesc.slice(4)}.</p>`;
+  } else if (r.phase === DISTANCE) {
+    title = "2 · Distance";
+    const i = sp.order[0], a1 = mem.x1[i], a2 = mem.x2[i], dx = Math.abs(a1 - q.x1), dy = Math.abs(a2 - q.x2), d = sp.d[i];
+    const lhs = `d(q, x${subs(mem.ids[i])})`;
+    const pair = (x, y, i2) => `(${f2(x)} − ${f2(y)})`;
+    let fx;
+    if (hp.metric === "euclidean")
+      fx = `${lhs} = √(${pair(a1, q.x1)}² + ${pair(a2, q.x2)}²)\n      = √(${(dx * dx).toFixed(4)} + ${(dy * dy).toFixed(4)}) = √${(dx * dx + dy * dy).toFixed(4)} = ${f3(d)}`;
+    else if (hp.metric === "manhattan")
+      fx = `${lhs} = |${f2(a1)} − ${f2(q.x1)}| + |${f2(a2)} − ${f2(q.x2)}|\n      = ${f3(dx)} + ${f3(dy)} = ${f3(d)}`;
+    else if (hp.metric === "chebyshev")
+      fx = `${lhs} = max(|${f2(a1)} − ${f2(q.x1)}|, |${f2(a2)} − ${f2(q.x2)}|)\n      = max(${f3(dx)}, ${f3(dy)}) = ${f3(d)}`;
+    else
+      fx = `${lhs} = (|${f2(a1)} − ${f2(q.x1)}|^${hp.p} + |${f2(a2)} − ${f2(q.x2)}|^${hp.p})^(1/${hp.p})\n      = (${f3(Math.pow(dx, hp.p))} + ${f3(Math.pow(dy, hp.p))})^(1/${hp.p}) = ${f3(d)}`;
+    body = `<p>Measure how far the query ${qDesc} is from every stored point (${METRIC_NAME[hp.metric]} distance). Worked example for the nearest one:</p>
+      <div class="fx">${fx}</div>
+      <p class="why">…computed the same way for all ${r.n} stored point${r.n > 1 ? "s" : ""} (see the table).</p>`;
+  } else if (r.phase === SORT) {
+    title = "3 · Sort & select K";
+    const nb = sp.nb, k = nb.k;
+    const rows = nb.nbIdx.slice(0, 8).map((idx, j) => `${j + 1}. #${mem.ids[idx]} (${CLASS_LETTERS[mem.y[idx]]})  d = ${f3(nb.nbD[j])}`).join("\n") + (k > 8 ? `\n… (${k - 8} more)` : "");
+    body = `<p>Sort all ${r.n} distances from smallest to largest and keep the first K = ${k}. The ${k}${k === 1 ? "st" : k === 2 ? "nd" : k === 3 ? "rd" : "th"}-nearest distance (${f3(nb.nbD[k - 1])}) becomes the radius of the neighborhood ${SHAPE[hp.metric]}.</p>
+      <div class="fx">${rows}</div>
+      ${hp.K > r.n ? `<p class="why">⚠ K = ${hp.K} is larger than the ${r.n} stored points, so all of them are used.</p>` : ""}`;
+  } else if (r.phase === VOTE) {
+    title = "4 · Vote";
+    const nb = sp.nb, k = nb.k;
+    const sc = Array.from({ length: C }, (_, c) => `score(${CLASS_LETTERS[c]}) = ${hp.weighting === "distance" ? f3(nb.scores[c]) : nb.scores[c]}`).join(", ");
+    let wLine = "";
+    if (hp.weighting === "distance") {
+      wLine = nb.exact
+        ? `A neighbor at distance 0 matches exactly, so only exact matches vote (w = 1, others 0).\n`
+        : `w = 1 / d, e.g. ` + nb.weights.slice(0, 3).map((w, j) => `w${subs(j + 1)} = 1 / ${f3(nb.nbD[j])} = ${f3(w)}`).join(", ") + (k > 3 ? ", …" : "") + `\nscore(c) = Σ wᵢ over neighbors of class c\n`;
+    } else wLine = `Every neighbor's vote counts 1.\n`;
+    const total = Array.from(nb.scores).reduce((a, b) => a + b, 0), a = hp.alpha;
+    const pc = nb.pred, tn = (v) => (hp.weighting === "distance" ? f3(v) : v);
+    const probLine = `p(c) = (score(c) + α) / (Σ scores + α·C)\np(${CLASS_LETTERS[pc]}) = (${tn(nb.scores[pc])} + ${a}) / (${tn(total)} + ${a}·${C}) = ${f3(nb.probs[pc])}`;
+    const verdict = q.kind === "val"
+      ? ` ${nb.pred === q.cls ? "✓" : "✗"} (true label ${CLASS_LETTERS[q.cls]})` : "";
+    body = `<p>The ${k} neighbor${k > 1 ? "s" : ""} vote${k > 1 ? "" : "s"}; the class with the highest probability wins.</p>
+      <div class="fx">${wLine}${sc}\n${probLine}\nŷ = argmax p(c) = ${CLASS_LETTERS[nb.pred]}${verdict}</div>`;
+  } else {
+    title = "5 · Evaluate";
+    const ev = r.evalRes, nv = r.val.n;
+    if (!nv) body = `<p>There are no validation points, so no loss can be measured. Add validation points or regenerate data with a validation ratio &gt; 0.</p>`;
+    else {
+      const prev = r.history.length > 1 ? r.history[r.history.length - 2] : null;
+      body = `<p>Predict every validation point with the current memory (${r.n} stored), then measure the loss.</p>
+        <div class="fx">L = −(1/|V|) Σ ln p(true class)\n  = −(1/${nv}) × (${f3(-ev.loss * nv)}) = ${f3(ev.loss)}\naccuracy = ${ev.correct} / ${nv} = ${pct(ev.accuracy)}${prev && Number.isFinite(prev.loss) ? `\nloss ${f3(prev.loss)} → ${f3(ev.loss)}  (${ev.loss <= prev.loss ? "▼" : "▲"} ${f3(Math.abs(ev.loss - prev.loss))})` : ""}</div>
+        <p class="why">If the model gives the true class a high probability, ln p is close to 0 → small loss. Confident mistakes are punished hard.</p>`;
+    }
+  }
+  el.innerHTML = `<h3>${title}</h3>${body}`;
+}
+
+function renderMemTable() {
+  const r = state.run, body = $("#memBody"), sp = r.spot, mem = r.memFull;
+  const sorted = r.phase >= SORT && sp, haveD = r.phase >= DISTANCE && sp;
+  if (r.n === 0) { body.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:14px">Memory is empty — press ⏭ Step to store the first points.</td></tr>`; return; }
+  const old = new Map();
+  // FLIP re-order animation only when the table is actually being sorted (sub-step 3), and only for short tables
+  const animate = !reducedMotion() && r.phase === SORT && body.children.length <= 120 && r.n <= 120;
+  if (animate) for (const tr of body.children) old.set(tr.dataset.id, tr.getBoundingClientRect().top);
+  const idxs = sorted ? sp.order : Array.from({ length: r.n }, (_, i) => i);
+  const k = sp ? sp.nb.k : 0, flash = new Set(r.phase === MEMORIZE ? r.lastAdded : []);
+  const rows = idxs.map((i, pos) => {
+    const id = mem.ids[i], isNb = sorted && pos < k;
+    return `<tr data-id="${id}" class="${isNb ? "nb" : ""} ${flash.has(id) ? "flash" : ""} ${id === state.ui.hoverId ? "hl" : ""}" style="--rc:${CLASS_COLORS[mem.y[i]]}">
+      <td>${id}</td><td>${mem.x1[i].toFixed(2)}</td><td>${mem.x2[i].toFixed(2)}</td><td class="cls">${cb(mem.y[i])}</td>
+      <td>${haveD ? sp.d[i].toFixed(2) : "—"}</td><td class="rank">${sorted ? pos + 1 : "—"}</td></tr>`;
+  });
+  body.innerHTML = rows.join("");
+  if (animate && old.size) {
+    for (const tr of body.children) {
+      const was = old.get(tr.dataset.id);
+      if (was === undefined) continue;
+      const dy = was - tr.getBoundingClientRect().top;
+      if (Math.abs(dy) > 2) tr.animate([{ transform: `translateY(${dy}px)` }, { transform: "none" }], { duration: 380, easing: "ease" });
+    }
+  }
+}
+function onHoverChanged(id) {
+  $$("#memBody tr.hl").forEach((t) => t.classList.remove("hl"));
+  if (id != null) { const tr = $(`#memBody tr[data-id="${id}"]`); if (tr) tr.classList.add("hl"); }
+}
+
+function renderVectors() {
+  const r = state.run, sp = r.spot, vec = $("#distVec"), bars = $("#voteBars");
+  if (r.phase < DISTANCE || !sp) vec.innerHTML = `<span class="muted">d = [ … ] appears after the Distance sub-step.</span>`;
+  else if (r.phase === DISTANCE) {
+    const shown = Array.from(sp.d.slice(0, 12)).map((v) => v.toFixed(2)).join(", ");
+    vec.innerHTML = `d = [${shown}${sp.d.length > 12 ? ", …" : ""}] <span class="muted">(${sp.d.length} values, memory order)</span>`;
+  } else {
+    const k = sp.nb.k, sd = sp.order.map((i) => sp.d[i].toFixed(2));
+    const head = sd.slice(0, k).map((v) => `<span class="k">${v}</span>`).join(", ");
+    const tail = sd.slice(k, k + 6).join(", ") + (sd.length > k + 6 ? ", …" : "");
+    vec.innerHTML = `d = [${head}${tail ? ` <span class="cut">|</span> ${tail}` : ""}] <span class="muted">(sorted, first K = ${k} highlighted)</span>`;
+  }
+  const C = state.data.classCount;
+  if (r.phase < VOTE || !sp) { bars.innerHTML = `<span class="muted" style="font-size:12.5px">Votes appear after the Vote sub-step.</span>`; return; }
+  const nb = sp.nb, maxS = Math.max(...nb.scores, 1e-9);
+  bars.innerHTML = Array.from({ length: C }, (_, c) => `
+    <div class="bar ${c === nb.pred ? "win" : ""}">${cb(c)}
+      <div class="track"><div class="fill" style="width:${(nb.probs[c] * 100).toFixed(1)}%;background:${CLASS_COLORS[c]}"></div></div>
+      <span>${nb.scores[c] % 1 === 0 ? nb.scores[c] : nb.scores[c].toFixed(2)} · p=${nb.probs[c].toFixed(3)}</span></div>`).join("");
+}
+
+function renderConfusion() {
+  const r = state.run, C = state.data.classCount, wrap = $("#confWrap"), acc = $("#confAcc");
+  if (!r.evalRes || !r.val.n) { wrap.innerHTML = `<p class="muted" style="text-align:center;font-size:12.5px;margin:4px">Appears after the first Evaluate sub-step.</p>`; acc.textContent = ""; return; }
+  const cm = r.evalRes.confusion, mx = Math.max(1, ...cm);
+  let h = `<table class="conf"><tr><th></th>${Array.from({ length: C }, (_, c) => `<th>pred ${CLASS_LETTERS[c]}</th>`).join("")}</tr>`;
+  for (let t = 0; t < C; t++) {
+    h += `<tr><th>true ${CLASS_LETTERS[t]}</th>`;
+    for (let p = 0; p < C; p++) {
+      const v = cm[t * C + p], a = v ? 0.15 + 0.6 * (v / mx) : 0;
+      h += `<td style="background:${v ? (t === p ? `rgba(61,220,151,${a})` : `rgba(255,107,107,${a})`) : "transparent"};${v ? "" : "color:var(--muted)"}">${v}</td>`;
+    }
+    h += `</tr>`;
+  }
+  wrap.innerHTML = h + `</table>`;
+  acc.textContent = `Accuracy ${r.evalRes.correct} / ${r.val.n} = ${pct(r.evalRes.accuracy)}`;
+}
+
+function renderModelState() {
+  renderStepper(); renderBanner(); renderExplain(); renderMemTable(); renderVectors(); renderConfusion();
+}
+
+/* =====================================================================
+   7. RENDER: LOSS CHART
+   ===================================================================== */
+const lossCv = $("#lossCv");
+let lctx = null;
+const lv = { w: 0, h: 0, padL: 58, padR: 54, padT: 18, padB: 36 };
+const lossUI = { showErr: true, hover: null };
+const LC = { accent: "#7c9cff", warn: "#ffc857", grid: "#ffffff14", muted: "#8b98a9", ghost: "#55627a", text: "#e6edf3" };
+
+/** Smallest "nice" tick step (1, 2, 2.5, 5 × 10ⁿ) that is at least `raw`. */
+function niceStep(raw) {
+  const e = Math.pow(10, Math.floor(Math.log10(raw)));
+  for (const m of [1, 2, 2.5, 5, 10]) if (m * e >= raw) return m * e;
+  return 10 * e;
+}
+function resizeLoss() {
+  const w = $("#lossWrap").clientWidth;
+  if (w < 80) return;
+  lv.w = w; lv.h = Math.round(clamp(w * 0.55, 210, 340));
+  lctx = fitCanvas(lossCv, lv.w, lv.h);
+  drawLoss();
+}
+function lossGeom() {
+  const r = state.run, C = state.data.classCount;
+  const finite = (a) => a.map((h) => h.loss).filter(Number.isFinite);
+  const all = [Math.log(C), ...finite(r.history), ...(r.ghost ? finite(r.ghost.history) : [])];
+  const step = niceStep((Math.max(...all) * 1.05) / 5);
+  const ymax = Math.ceil((Math.max(...all) * 1.05) / step - 1e-9) * step;
+  const Tx = Math.max(r.T, 1), pw = lv.w - lv.padL - lv.padR, ph = lv.h - lv.padT - lv.padB;
+  return { step, ymax, Tx, pw, ph, X: (e) => lv.padL + (e / Tx) * pw, YL: (v) => lv.padT + (1 - v / ymax) * ph, YR: (v) => lv.padT + (1 - v) * ph };
+}
+function drawSeries(ctx, hist, g, key, yfn, color, width, dash, dots) {
+  ctx.save();
+  ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = width; ctx.setLineDash(dash); ctx.lineJoin = "round";
+  ctx.beginPath();
+  let started = false;
+  for (const h of hist) {
+    if (!Number.isFinite(h[key])) continue;
+    const x = g.X(h.epoch), y = yfn(h[key]);
+    if (!started) { ctx.moveTo(x, y); started = true; } else ctx.lineTo(x, y);
+  }
+  ctx.stroke(); ctx.setLineDash([]);
+  if (dots) for (const h of hist) if (Number.isFinite(h[key])) { ctx.beginPath(); ctx.arc(g.X(h.epoch), yfn(h[key]), hist.length > 60 ? 1.6 : 3, 0, Math.PI * 2); ctx.fill(); }
+  ctx.restore();
+}
+function drawLoss() {
+  if (!lctx || !state.run) return;
+  const ctx = lctx, r = state.run, C = state.data.classCount, g = lossGeom(), mono = getComputedStyle(document.body).getPropertyValue("--mono");
+  ctx.clearRect(0, 0, lv.w, lv.h);
+  ctx.font = `11px ${mono}`; ctx.lineWidth = 1;
+  // grid + left axis
+  ctx.textAlign = "right"; ctx.fillStyle = LC.muted;
+  for (let v = 0; v <= g.ymax + 1e-9; v += g.step) {
+    const y = g.YL(v);
+    ctx.strokeStyle = LC.grid; ctx.beginPath(); ctx.moveTo(lv.padL, y); ctx.lineTo(lv.padL + g.pw, y); ctx.stroke();
+    ctx.fillText(v.toFixed(g.step < 0.1 ? 2 : g.step < 1 ? 2 : 1), lv.padL - 6, y + 4);
+  }
+  // right axis: error rate 0–100 %
+  if (lossUI.showErr) {
+    ctx.textAlign = "left";
+    for (let p = 0; p <= 100; p += 25) ctx.fillText(p + "%", lv.padL + g.pw + 6, g.YR(p / 100) + 4);
+  }
+  // x axis
+  const xs = niceStep(g.Tx / 10);
+  ctx.textAlign = "center";
+  for (let e = 0; e <= g.Tx + 1e-9; e += Math.max(1, xs)) {
+    ctx.strokeStyle = LC.grid; ctx.beginPath(); ctx.moveTo(g.X(e), lv.padT); ctx.lineTo(g.X(e), lv.padT + g.ph); ctx.stroke();
+    ctx.fillText(Math.round(e), g.X(e), lv.padT + g.ph + 15);
+  }
+  ctx.strokeStyle = "#ffffff30"; ctx.beginPath(); ctx.moveTo(lv.padL, lv.padT); ctx.lineTo(lv.padL, lv.padT + g.ph); ctx.lineTo(lv.padL + g.pw, lv.padT + g.ph); ctx.stroke();
+  ctx.fillStyle = LC.muted; ctx.font = `11px ${getComputedStyle(document.body).fontFamily}`;
+  ctx.fillText("epoch", lv.padL + g.pw / 2, lv.h - 6);
+  ctx.save(); ctx.translate(12, lv.padT + g.ph / 2); ctx.rotate(-Math.PI / 2); ctx.fillText("validation loss", 0, 0); ctx.restore();
+  if (lossUI.showErr) { ctx.save(); ctx.translate(lv.w - 8, lv.padT + g.ph / 2); ctx.rotate(Math.PI / 2); ctx.fillText("error rate", 0, 0); ctx.restore(); }
+
+  if (!r.val.n) {
+    ctx.fillStyle = LC.muted; ctx.textAlign = "center"; ctx.font = `13px ${getComputedStyle(document.body).fontFamily}`;
+    ctx.fillText("No validation points — add some, or regenerate with a validation ratio > 0.", lv.padL + g.pw / 2, lv.padT + g.ph / 2);
+    return;
+  }
+  // ghost (previous hyperparameters)
+  if (r.ghost) {
+    drawSeries(ctx, r.ghost.history, g, "loss", g.YL, LC.ghost, 1.5, [5, 4], false);
+    const last = r.ghost.history[r.ghost.history.length - 1];
+    if (Number.isFinite(last.loss)) {
+      const x = g.X(last.epoch), right = x > lv.padL + g.pw * 0.6;
+      ctx.fillStyle = LC.muted; ctx.font = `10.5px ${mono}`; ctx.textAlign = right ? "right" : "left";
+      ctx.fillText(r.ghost.label, x + (right ? -6 : 6), g.YL(last.loss) - 7);
+    }
+  }
+  // epoch-0 baseline: with an empty memory every class has p = 1/C, so loss = ln C
+  ctx.strokeStyle = "#ffffff30"; ctx.setLineDash([3, 4]); ctx.beginPath();
+  ctx.moveTo(lv.padL, g.YL(Math.log(C))); ctx.lineTo(lv.padL + g.pw, g.YL(Math.log(C))); ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle = LC.muted; ctx.font = `10.5px ${mono}`; ctx.textAlign = "right";
+  ctx.fillText(`ln ${C} = ${Math.log(C).toFixed(3)} (empty memory)`, lv.padL + g.pw - 4, g.YL(Math.log(C)) - 5);
+  // current epoch marker
+  ctx.strokeStyle = "#7c9cff66"; ctx.setLineDash([2, 3]); ctx.beginPath(); ctx.moveTo(g.X(r.epoch), lv.padT); ctx.lineTo(g.X(r.epoch), lv.padT + g.ph); ctx.stroke(); ctx.setLineDash([]);
+  if (lossUI.showErr) drawSeries(ctx, r.history, g, "error", g.YR, LC.warn, 1.5, [5, 3], false);
+  drawSeries(ctx, r.history, g, "loss", g.YL, LC.accent, 2, [], true);
+  // convergence flag
+  if (r.status === "converged") {
+    const x = g.X(r.convEpoch), y0 = lv.padT + 2;
+    ctx.strokeStyle = LC.text; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(x, y0 + 16); ctx.lineTo(x, y0); ctx.stroke();
+    ctx.fillStyle = r.convReason === "early" ? LC.warn : "#3ddc97";
+    ctx.beginPath(); ctx.moveTo(x, y0); ctx.lineTo(x + 9, y0 + 4); ctx.lineTo(x, y0 + 8); ctx.closePath(); ctx.fill();
+    ctx.font = `10.5px ${mono}`; ctx.textAlign = x > lv.w * 0.7 ? "right" : "left";
+    ctx.fillText(r.convReason === "early" ? "early stop" : "converged", x + (x > lv.w * 0.7 ? -4 : 12), y0 + 8);
+    ctx.lineWidth = 1;
+  }
+  // hover crosshair
+  const e = lossUI.hover;
+  if (e != null && r.history[e]) {
+    const h = r.history[e], x = g.X(e);
+    ctx.strokeStyle = "#ffffff55"; ctx.beginPath(); ctx.moveTo(x, lv.padT); ctx.lineTo(x, lv.padT + g.ph); ctx.stroke();
+    if (Number.isFinite(h.loss)) { ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(x, g.YL(h.loss), 4.5, 0, Math.PI * 2); ctx.fill(); }
+  }
+}
+function renderLoss() {
+  const r = state.run;
+  $("#lossLegend").innerHTML =
+    `<span style="display:flex;align-items:center;gap:6px"><i></i>Validation loss (cross-entropy)</span>
+     <button id="lgErr" class="${lossUI.showErr ? "" : "off"}" title="Click to show / hide" aria-pressed="${lossUI.showErr}"><i class="err"></i>Validation error rate</button>
+     ${r.ghost ? `<span style="display:flex;align-items:center;gap:6px"><i class="gh"></i>${r.ghost.label}</span>` : ""}`;
+  drawLoss();
+}
+function bindLoss() {
+  new ResizeObserver(resizeLoss).observe($("#lossWrap"));
+  $("#lossLegend").addEventListener("click", (e) => { if (e.target.closest("#lgErr")) { lossUI.showErr = !lossUI.showErr; renderLoss(); } });
+  const tip = $("#lossTip");
+  lossCv.addEventListener("pointermove", (ev) => {
+    const r = state.run, rect = lossCv.getBoundingClientRect(), mx = ev.clientX - rect.left, g = lossGeom();
+    const e = clamp(Math.round(((mx - lv.padL) / g.pw) * g.Tx), 0, r.history.length - 1);
+    lossUI.hover = r.val.n ? e : null;
+    const h = r.history[e];
+    if (r.val.n && h) {
+      let txt = `epoch ${h.epoch} · |M| = ${h.memSize} · loss ${fmt(h.loss, 3)} · error ${pct(h.error)}`;
+      const gh = r.ghost && r.ghost.history[e];
+      if (gh) txt += ` · previous ${fmt(gh.loss, 3)}`;
+      tip.textContent = txt; tip.style.display = "block";
+      tip.style.left = clamp(g.X(e) + 12, 0, Math.max(0, lv.w - tip.offsetWidth - 4)) + "px";
+      tip.style.top = Math.max(0, ev.clientY - rect.top - 34) + "px";
+    }
+    drawLoss();
+  });
+  lossCv.addEventListener("pointerleave", () => { lossUI.hover = null; tip.style.display = "none"; drawLoss(); });
+}
+
+/* =====================================================================
+   8. UI BINDINGS (data-panel part)
+   ===================================================================== */
+function canvasPos(ev) {
+  const r = cv.getBoundingClientRect();
+  return { x: ev.clientX - r.left, y: ev.clientY - r.top };
+}
+function inPlot(m) { return m.x >= view.padL && m.x <= view.padL + view.pw && m.y >= view.padT && m.y <= view.padT + view.ph; }
+
+function setTool(tool) {
+  state.ui.tool = tool;
+  $$("#toolSeg button").forEach((b) => b.classList.toggle("on", b.dataset.tool === tool));
+  $("#addOpts").style.display = tool === "add" ? "" : "none";
+  $("#brushOpt").hidden = tool !== "erase";
+  cv.style.cursor = tool === "erase" ? "none" : "crosshair";
+  requestRender();
+}
+function buildClassChips() {
+  const C = state.data.classCount;
+  if (state.ui.addClass >= C) state.ui.addClass = 0;
+  $("#classSeg").innerHTML = CLASS_LETTERS.slice(0, C).map((l, c) =>
+    `<button data-cls="${c}" class="${c === state.ui.addClass ? "on" : ""}" style="${c === state.ui.addClass ? "background:" + CLASS_COLORS[c] : ""}" aria-label="Class ${l}">${l}</button>`).join("");
+}
+function setAddClass(c) {
+  if (c >= state.data.classCount) return;
+  state.ui.addClass = c; buildClassChips();
+}
+
+let erasing = false;
+function eraseAt(m) {
+  const r2 = state.ui.brush ** 2;
+  removePoints((p) => { const [x, y] = toPx(p.x1, p.x2); return (x - m.x) ** 2 + (y - m.y) ** 2 <= r2; });
+}
+function bindCanvas() {
+  cv.addEventListener("pointerdown", (ev) => {
+    if (ev.button !== 0) return;
+    const m = canvasPos(ev), t = state.ui.tool;
+    state.ui.mouse = m;
+    if (t === "erase") { erasing = true; cv.setPointerCapture(ev.pointerId); eraseAt(m); return; }
+    if (t === "add" && inPlot(m)) {
+      const [x1, x2] = toData(m.x, m.y);
+      addPoint(x1, x2, state.ui.addClass, state.ui.addSet);
+    }
+    if (t === "probe") probePointer(m, ev, "down");
+  });
+  cv.addEventListener("pointermove", (ev) => {
+    const m = canvasPos(ev);
+    state.ui.mouse = m;
+    if (erasing) eraseAt(m);
+    if (state.ui.tool === "probe" && ev.buttons & 1) probePointer(m, ev, "move");
+    const hp = nearestPoint(m.x, m.y);
+    setHover(hp ? hp.id : null);
+    const tip = $("#ftip");
+    if (hp) {
+      tip.textContent = tooltipText(hp);
+      tip.style.display = "block";
+      const wrapW = $("#cvwrap").clientWidth;
+      tip.style.left = clamp(m.x + 14, 0, Math.max(0, wrapW - tip.offsetWidth - 4)) + "px";
+      tip.style.top = Math.max(0, m.y - 30) + "px";
+    } else tip.style.display = "none";
+    requestRender();
+  });
+  const stop = () => { erasing = false; probeDrag = false; };
+  cv.addEventListener("pointerup", stop);
+  cv.addEventListener("pointercancel", stop);
+  cv.addEventListener("pointerleave", () => {
+    state.ui.mouse = null; setHover(null); $("#ftip").style.display = "none"; requestRender();
+  });
+  cv.addEventListener("contextmenu", (ev) => {
+    ev.preventDefault();
+    const m = canvasPos(ev), p = nearestPoint(m.x, m.y), pr = state.ui.probe;
+    if (p) removePoints((q) => q.id === p.id);
+    else if (pr) { const [x, y] = toPx(pr.x1, pr.x2); if ((x - m.x) ** 2 + (y - m.y) ** 2 < 144) { state.ui.probe = null; requestRender(); } }
+  });
+}
+/** Hover is shared between canvas and memory table (table sync is added in phase 5). */
+function setHover(id) {
+  if (state.ui.hoverId === id) return;
+  state.ui.hoverId = id;
+  onHoverChanged(id);
+}
+
+function syncGeneratorUI() {
+  const g = state.gen, fixed = PATTERNS[g.pattern].fixedClasses;
+  $("#gClasses").value = String(fixed || g.classes);
+  $("#gClasses").disabled = !!fixed;
+  $("#gClassesHint").textContent = fixed ? "this pattern needs exactly 2" : "";
+  $("#gTotalV").textContent = g.total;
+  $("#gNoiseV").textContent = g.noise.toFixed(2);
+  $("#gValV").textContent = Math.round(g.valRatio * 100) + "%";
+}
+function runGenerator() {
+  setDataset(generateDataset(state.gen));
+  buildClassChips();
+  toast(`Generated ${state.data.points.length} points (seed ${state.gen.seed}).`);
+}
+function bindDataPanel() {
+  $$("#toolSeg button").forEach((b) => b.addEventListener("click", () => setTool(b.dataset.tool)));
+  $("#classSeg").addEventListener("click", (e) => { const b = e.target.closest("button[data-cls]"); if (b) setAddClass(+b.dataset.cls); });
+  $$("#setSeg button").forEach((b) => b.addEventListener("click", () => {
+    state.ui.addSet = b.dataset.set;
+    $$("#setSeg button").forEach((x) => x.classList.toggle("on", x === b));
+  }));
+  $("#brush").addEventListener("input", (e) => { state.ui.brush = +e.target.value; $("#brushV").textContent = e.target.value + "px"; });
+  const g = state.gen;
+  $("#gPattern").addEventListener("change", (e) => { g.pattern = e.target.value; syncGeneratorUI(); });
+  $("#gClasses").addEventListener("change", (e) => { g.classes = +e.target.value; });
+  $("#gTotal").addEventListener("input", (e) => { g.total = +e.target.value; syncGeneratorUI(); });
+  $("#gNoise").addEventListener("input", (e) => { g.noise = +e.target.value; syncGeneratorUI(); });
+  $("#gVal").addEventListener("input", (e) => { g.valRatio = +e.target.value / 100; syncGeneratorUI(); });
+  $("#gSeed").addEventListener("change", (e) => { g.seed = Math.max(0, Math.floor(+e.target.value) || 0); e.target.value = g.seed; });
+  $("#gDice").addEventListener("click", () => { g.seed = Math.floor(Math.random() * 1e6); $("#gSeed").value = g.seed; runGenerator(); });
+  $("#gGo").addEventListener("click", runGenerator);
+  $("#gClear").addEventListener("click", () => { state.data.points = []; dataChanged("Data changed — model reset."); buildClassChips(); });
+  $$("[data-tg]").forEach((c) => c.addEventListener("change", () => { state.ui.toggles[c.dataset.tg] = c.checked; requestRender(); }));
+  $("#gridRes").addEventListener("change", (e) => { state.ui.gridRes = +e.target.value; invalidateBoundary(); requestRender(); });
+  bindCanvas();
+  const mb = $("#memBody");
+  mb.addEventListener("mouseover", (e) => { const tr = e.target.closest("tr[data-id]"); if (tr) { setHover(+tr.dataset.id); requestRender(); } });
+  mb.addEventListener("mouseleave", () => { setHover(null); requestRender(); });
+}
+
+const METRIC_FORMULA = {
+  euclidean: "d = √((a₁ − b₁)² + (a₂ − b₂)²)",
+  manhattan: "d = |a₁ − b₁| + |a₂ − b₂|",
+  chebyshev: "d = max(|a₁ − b₁|, |a₂ − b₂|)",
+  minkowski: "d = (|a₁ − b₁|ᵖ + |a₂ − b₂|ᵖ)^(1/p)",
+};
+function syncMetricUI() {
+  const hp = state.hp;
+  $$("#hMetric button").forEach((b) => b.classList.toggle("on", b.dataset.v === hp.metric));
+  $$("#hWeight button").forEach((b) => b.classList.toggle("on", b.dataset.v === hp.weighting));
+  $("#metricFormula").textContent = METRIC_FORMULA[hp.metric] + (hp.metric === "minkowski" ? `   (p = ${hp.p})` : "");
+  $("#pRow").hidden = hp.metric !== "minkowski";
+  $("#hKV").textContent = hp.K; $("#hPV").textContent = hp.p; $("#hAlphaV").textContent = hp.alpha.toFixed(1);
+  $("#hSpeedV").textContent = state.ui.speed;
+  $("#hSpot").value = hp.spotlightMode;
+}
+/** Live hyperparameters: keep memory, recompute loss history (see onHpChange). */
+function setLiveHp(patch) {
+  Object.assign(state.hp, patch);
+  syncMetricUI();
+  onHpChange();
+}
+function setResetHp(patch) {
+  Object.assign(state.hp, patch);
+  syncMetricUI();
+  const started = state.run.epoch > 0 || state.run.phase >= 0;
+  resetModel();
+  if (started) toast("Setting changed — model reset.");
+}
+function bindControls() {
+  $("#hK").addEventListener("input", (e) => setLiveHp({ K: +e.target.value }));
+  $$("#hMetric button").forEach((b) => b.addEventListener("click", () => { if (state.hp.metric !== b.dataset.v) setLiveHp({ metric: b.dataset.v }); }));
+  $("#hP").addEventListener("input", (e) => setLiveHp({ p: +e.target.value }));
+  $$("#hWeight button").forEach((b) => b.addEventListener("click", () => { if (state.hp.weighting !== b.dataset.v) setLiveHp({ weighting: b.dataset.v }); }));
+  $("#hAlpha").addEventListener("input", (e) => setLiveHp({ alpha: +e.target.value }));
+  $("#hB").addEventListener("change", (e) => setResetHp({ B: +e.target.value }));
+  $("#hOrder").addEventListener("change", (e) => setResetHp({ order: e.target.value }));
+  $("#hSpot").addEventListener("change", (e) => {
+    state.hp.spotlightMode = e.target.value;
+    if (e.target.value === "pinned" && !state.ui.pinnedId) toast("Pick the Probe tool and click a validation point to pin it.");
+    applyPinnedNow();
+  });
+  $("#hEarly").addEventListener("change", (e) => { state.hp.earlyStop = e.target.checked; });
+  $("#hEps").addEventListener("change", (e) => { state.hp.eps = Math.max(0, +e.target.value || 0); });
+  $("#hPat").addEventListener("change", (e) => { state.hp.patience = clamp(Math.floor(+e.target.value) || 1, 1, 50); e.target.value = state.hp.patience; });
+  $("#hSpeed").addEventListener("input", (e) => { state.ui.speed = +e.target.value; $("#hSpeedV").textContent = e.target.value; });
+  $("#animSub").addEventListener("change", (e) => { state.ui.animateSubsteps = e.target.checked; });
+  $("#btnStep").addEventListener("click", () => stepOnce());
+  $("#btnEpoch").addEventListener("click", nextEpoch);
+  $("#btnPlay").addEventListener("click", togglePlay);
+  $("#btnReset").addEventListener("click", resetModel);
+  syncMetricUI();
+}
+/** A pinned spotlight takes effect immediately instead of waiting for the next epoch. */
+function applyPinnedNow() {
+  const r = state.run;
+  if (state.hp.spotlightMode !== "pinned" || !state.ui.pinnedId || !r.query) return;
+  const p = state.data.points.find((q) => q.id === state.ui.pinnedId);
+  if (!p) return;
+  r.query = { x1: p.x1, x2: p.x2, id: p.id, cls: p.cls, kind: "val" };
+  r.spot = computeSpot();
+  renderAll();
+}
+
+function updateControls() {
+  const r = state.run, hp = state.hp, conv = r.status === "converged";
+  $("#btnStep").disabled = !canStep();
+  $("#btnEpoch").disabled = !canStep();
+  $("#btnPlay").disabled = !canPlay() && r.status !== "running";
+  $("#btnPlay").textContent = r.status === "running" ? "⏸ Pause" : "▶ Play until convergence";
+  $("#btnStep").title = canStep() ? `Next sub-step: ${SUBSTEPS[r.next]} (→)` : "Step (→)";
+  const last = r.history[r.history.length - 1];
+  const chip = (label, val, cls = "") => `<span class="chip ${cls}">${label} <b>${val}</b></span>`;
+  const parts = [
+    chip("Epoch", `${r.epoch} / ${r.T}`),
+    chip("Memory |M|", `${r.n} / ${r.N}`),
+    chip("Val loss", Number.isFinite(last.loss) ? last.loss.toFixed(3) : "—"),
+    chip("Val accuracy", Number.isFinite(last.error) ? pct(1 - last.error) : "—"),
+    chip("Phase", r.phase >= 0 ? SUBSTEPS[r.phase] : "Ready"),
+  ];
+  if (r.n > 0 && hp.K > r.n) parts.push(chip("", "K > stored points — using all |M|", "warn"));
+  $("#metricChips").innerHTML = parts.join("");
+  $("#chipEpoch").textContent = `epoch ${r.epoch} / ${r.T}`;
+  $("#chipMem").textContent = `|M| = ${r.n} / ${r.N}`;
+  $("#chipLoss").textContent = Number.isFinite(last.loss) ? `loss ${last.loss.toFixed(3)}` : "loss —";
+  $("#ctlHint").textContent =
+    r.N === 0 ? "No training points — add some or generate data to enable Step / Play."
+    : conv ? "Converged — press ↺ Reset model to run again. The Probe tool still works."
+    : r.val.n === 0 ? "Add validation points or regenerate data with a validation ratio > 0 to enable Play."
+    : "";
+}
+
+/* ---- keyboard shortcuts (ignored while typing in inputs) ---- */
+function bindKeyboard() {
+  document.addEventListener("keydown", (e) => {
+    const t = e.target, tag = t.tagName;
+    if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA" || t.isContentEditable) return;
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if ((e.key === " " || e.key === "Enter") && (tag === "BUTTON" || t.getAttribute("role") === "button")) return; // let the focused button act
+    const k = e.key.toLowerCase();
+    let handled = true;
+    if (k === " ") togglePlay();
+    else if (k === "arrowright") stepOnce();
+    else if (k === "e") nextEpoch();
+    else if (k === "r") resetModel();
+    else if (k === "g") runGenerator();
+    else if (k >= "1" && k <= "4") setAddClass(+k - 1);
+    else if (k === "a") setTool("add");
+    else if (k === "x") setTool("erase");
+    else if (k === "p") setTool("probe");
+    else if (k === "escape") { state.ui.probe = null; requestRender(); }
+    else handled = false;
+    if (handled) e.preventDefault();
+  });
+}
+
+/** Self-tests that need the state machine (called from runSelfTests). */
+function extraSelfTests(check, near) {
+  const C0 = Math.log(3);
+  setDataset(generateDataset({ pattern: "blobs", classes: 3, total: 60, noise: 0.3, valRatio: 0.25, seed: 5 }));
+  state.hp.B = 5; state.hp.K = 5; state.hp.metric = "euclidean"; state.hp.weighting = "uniform";
+  resetModel();
+  let r = state.run, steps = 0, phases = [];
+  while (r.status !== "converged" && steps < 1000) { phases.push(r.next); stepOnce(true); steps++; }
+  check("State machine: converges after exactly 5·T sub-steps", steps === 5 * r.T && r.status === "converged", `steps=${steps} T=${r.T}`);
+  check("State machine: sub-steps cycle 0,1,2,3,4", phases.slice(0, 10).join("") === "0123401234");
+  check("State machine: loss history length = T + 1 after convergence", r.history.length === r.T + 1, `len=${r.history.length}`);
+  check("State machine: all training points memorized", r.n === r.N && r.memSet.size === r.N && r.convReason === "all");
+  check("State machine: epoch-0 loss = ln C", near(r.history[0].loss, C0));
+  check("State machine: final loss < ln C (memory helps)", r.history[r.T].loss < C0);
+  check("State machine: Step is a no-op after convergence", stepOnce(true) === false);
+
+  resetModel(); r = state.run;
+  for (let i = 0; i < 12; i++) stepOnce(true); // 2 full epochs + 2 sub-steps
+  const nBefore = r.n, histLen = r.history.length;
+  setLiveHp({ K: 1 });
+  r = state.run;
+  check("Changing K mid-run keeps memory", r.n === nBefore && r.memSet.size === nBefore);
+  check("Changing K mid-run keeps history length and creates a ghost", r.history.length === histLen && r.ghost && r.ghost.history.length === histLen);
+  const fresh = lossHistory(r.memFull, r.val, state.hp, state.data.classCount, state.hp.B, histLen - 1);
+  check("Changing K mid-run recomputes loss history from epoch 0", fresh.every((h, i) => near(h.loss, r.history[i].loss)));
+  check("Changing K mid-run: epoch-0 loss still ln C", near(r.history[0].loss, C0));
+  check("Next epoch stops at an epoch boundary", (nextEpoch(), state.run.next === MEMORIZE));
+
+  // restore default demo state
+  state.hp.B = 2; state.hp.K = 5; syncMetricUI();
+  $("#hB").value = "2"; $("#hK").value = "5";
+  runGenerator();
+}
+
+/** Collapsible panels + floating ⓘ tooltips + help popover (shared UI chrome). */
+function bindChrome() {
+  $$(".panel .ph").forEach((ph) => {
+    const toggle = () => {
+      const panel = ph.parentElement, c = panel.classList.toggle("collapsed");
+      ph.setAttribute("aria-expanded", String(!c));
+    };
+    ph.addEventListener("click", toggle);
+    ph.addEventListener("keydown", (e) => { if ((e.key === "Enter" || e.key === " ") && e.target === ph) { e.preventDefault(); toggle(); } });
+  });
+  const gt = $("#gtip");
+  const show = (el) => {
+    gt.textContent = el.dataset.tip; gt.classList.add("show");
+    const r = el.getBoundingClientRect();
+    gt.style.left = clamp(r.left - 8, 8, window.innerWidth - gt.offsetWidth - 8) + "px";
+    const above = r.top - gt.offsetHeight - 8;
+    gt.style.top = (above > 8 ? above : r.bottom + 8) + "px";
+  };
+  document.addEventListener("mouseover", (e) => { const el = e.target.closest?.(".i"); if (el) show(el); });
+  document.addEventListener("mouseout", (e) => { if (e.target.closest?.(".i")) gt.classList.remove("show"); });
+  document.addEventListener("focusin", (e) => { const el = e.target.closest?.(".i"); if (el) show(el); });
+  document.addEventListener("focusout", (e) => { if (e.target.closest?.(".i")) gt.classList.remove("show"); });
+  $("#helpBtn").addEventListener("click", (e) => {
+    e.stopPropagation();
+    const on = $("#helpPop").classList.toggle("show");
+    $("#helpBtn").setAttribute("aria-expanded", String(on));
+  });
+  document.addEventListener("click", (e) => { if (!e.target.closest(".pop")) $("#helpPop").classList.remove("show"); });
+  $("#members").innerHTML = MEMBERS.map((m) => `<li><span class="id">${m.id}</span> — ${m.name}</li>`).join("");
+}
+
+/* =====================================================================
+   9. SELF-TESTS (run with ?test=1)
+   ===================================================================== */
+function runSelfTests() {
+  const results = [];
+  const check = (name, cond, detail = "") => {
+    results.push({ name, pass: !!cond });
+    console[cond ? "log" : "error"](`${cond ? "PASS" : "FAIL"}  ${name}${cond ? "" : "  " + detail}`);
+  };
+  const near = (a, b, eps = 1e-9) => Math.abs(a - b) < eps;
+  const HP = { K: 3, metric: "euclidean", p: 3, weighting: "uniform", alpha: 0.5 };
+  const mk = (pts) => buildSet(pts.map(([x1, x2, cls], i) => ({ id: i + 1, x1, x2, cls })));
+
+  // distances
+  check("Euclidean d((0,0),(3,4)) = 5", near(distance("euclidean", 0, 0, 3, 4), 5));
+  check("Manhattan d((0,0),(3,4)) = 7", near(distance("manhattan", 0, 0, 3, 4), 7));
+  check("Chebyshev d((0,0),(3,4)) = 4", near(distance("chebyshev", 0, 0, 3, 4), 4));
+  check("Minkowski p=2 equals Euclidean", near(distance("minkowski", 0, 0, 3, 4, 2), 5));
+  check("Minkowski p=1 equals Manhattan", near(distance("minkowski", 0, 0, 3, 4, 1), 7));
+
+  // empty memory
+  const empty = mk([]);
+  const e0 = knnPredict(empty, 5, 5, HP, 3);
+  check("Empty memory gives p_c = 1/C", [...e0.probs].every((p) => near(p, 1 / 3)));
+  const val = mk([[1, 1, 0], [5, 5, 1], [8, 8, 2]]);
+  const ev0 = evaluate(empty, val, HP, 3);
+  check("Empty memory gives loss = ln C", near(ev0.loss, Math.log(3)), `got ${ev0.loss}`);
+
+  // K=1 self-prediction
+  const m1 = mk([[1, 1, 0], [5, 5, 1], [8, 8, 2], [2, 7, 1]]);
+  check("K=1 on a stored point predicts its own class",
+    m1.ids.every((_, i) => knnPredict(m1, m1.x1[i], m1.x2[i], { ...HP, K: 1 }, 3).pred === m1.y[i]));
+
+  // uniform vote [A, A, B]
+  const m2 = mk([[1, 1, 0], [1.1, 1, 0], [1.2, 1, 1], [9, 9, 2]]);
+  const r2 = knnPredict(m2, 1, 1, HP, 3);
+  check("Uniform vote [A,A,B]: p(A) = (2+α)/(3+αC)", near(r2.probs[0], (2 + 0.5) / (3 + 0.5 * 3)), `got ${r2.probs[0]}`);
+  check("Uniform vote [A,A,B]: p(B) = (1+α)/(3+αC)", near(r2.probs[1], (1 + 0.5) / (3 + 0.5 * 3)));
+  check("Probabilities sum to 1", near([...r2.probs].reduce((a, b) => a + b, 0), 1));
+  check("Prediction is argmax (A)", r2.pred === 0);
+
+  // tie-break: nearest neighbour's class wins
+  const m3 = mk([[1, 1, 1], [2, 1, 0]]);
+  const r3 = knnPredict(m3, 1.2, 1, { ...HP, K: 2 }, 2);
+  check("Tie-break picks the nearest neighbour's class", r3.pred === 1 && near(r3.probs[0], r3.probs[1]));
+  const m3b = mk([[2, 1, 0], [1, 1, 1]]); // nearest is class 1 here (listed second)
+  check("Tie-break uses distance, not list order", knnPredict(m3b, 1.2, 1, { ...HP, K: 2 }, 2).pred === 1);
+  // equal distances -> smaller index wins the neighbour slot
+  const m3c = mk([[0, 0, 0], [2, 0, 1]]);
+  check("Equal distances: smaller index ranks first", knnPredict(m3c, 1, 0, { ...HP, K: 1 }, 2).nbIdx[0] === 0);
+
+  // distance weighting
+  const m4 = mk([[1, 1, 0], [1.5, 1, 1], [4, 4, 1]]);
+  const r4 = knnPredict(m4, 1.0, 1, { ...HP, K: 3, weighting: "distance" }, 2);
+  check("Distance weighting: exact match dominates", r4.exact && r4.pred === 0 && r4.scores[1] === 0);
+  const r4b = knnPredict(m4, 1.1, 1, { ...HP, K: 3, weighting: "distance" }, 2);
+  check("Distance weighting: w = 1/(d+1e-6)", near(r4b.weights[0], 1 / (0.1 + 1e-6), 1e-6));
+
+  // K > |M|
+  const r5 = knnPredict(m2, 1, 1, { ...HP, K: 25 }, 3);
+  check("K > |M| uses all stored points", r5.k === 4 && r5.nbIdx.length === 4);
+
+  // loss history length = T + 1
+  const N = 17, B = 5, T = Math.ceil(N / B);
+  const pts = Array.from({ length: N }, (_, i) => ({ id: i + 1, x1: (i * 0.57) % 10, x2: (i * 1.31) % 10, cls: i % 3 }));
+  const hist = lossHistory(buildSet(pts), val, HP, 3, B, T);
+  check("Loss history length = T + 1", hist.length === T + 1 && hist[0].epoch === 0 && hist[T].memSize === N);
+  check("Loss history epoch 0 = ln C", near(hist[0].loss, Math.log(3)));
+
+  // seeded generators
+  const gp = { pattern: "blobs", classes: 3, total: 90, noise: 0.3, valRatio: 0.25, seed: 7 };
+  const a = JSON.stringify(generateDataset(gp)), b = JSON.stringify(generateDataset(gp));
+  check("Same seed -> identical dataset", a === b);
+  check("Different seed -> different dataset", a !== JSON.stringify(generateDataset({ ...gp, seed: 8 })));
+  for (const pat of Object.keys(PATTERNS)) {
+    const ds = generateDataset({ ...gp, pattern: pat, total: 100 });
+    const inDom = ds.points.every((p) => p.x1 >= 0 && p.x1 <= 10 && p.x2 >= 0 && p.x2 <= 10);
+    check(`Generator "${pat}": 100 points, inside [0,10]², unique ids`,
+      ds.points.length === 100 && inDom && new Set(ds.points.map((p) => p.id)).size === 100);
+    check(`Generator "${pat}": has validation and training points`,
+      ds.points.some((p) => p.set === "val") && ds.points.some((p) => p.set === "train"));
+  }
+
+  // boundary grid
+  const bg = boundaryGrid(m1, 10, HP, 3);
+  check("Boundary grid size = res²", bg.pred.length === 100);
+  check("Boundary grid on empty memory is unknown", boundaryGrid(empty, 4, HP, 3).pred.every((v) => v === 255));
+
+  extraSelfTests(check, near);
+
+  const failed = results.filter((r) => !r.pass).length;
+  console.log(`SELF-TESTS: ${results.length - failed}/${results.length} passed${failed ? ", " + failed + " FAILED" : ""}`);
+  window.__testResults = { total: results.length, failed, results };
+  const badge = document.createElement("div");
+  badge.style.cssText = `position:fixed;right:12px;top:12px;z-index:999;padding:6px 12px;border-radius:8px;font:600 13px ${getComputedStyle(document.body).fontFamily};background:${failed ? "#5a2a2a" : "#145a3c"};color:#fff`;
+  badge.textContent = failed ? `${failed} self-test(s) FAILED — see console` : `All ${results.length} self-tests passed`;
+  document.body.appendChild(badge);
+}
+
+/* =====================================================================
+   10. INIT
+   ===================================================================== */
+function init() {
+  bindChrome();
+  bindControls();
+  bindLoss();
+  bindKeyboard();
+  bindDataPanel();
+  syncGeneratorUI();
+  setDataset(generateDataset(state.gen));
+  buildClassChips();
+  setTool("add");
+  new ResizeObserver(resizeDataCanvas).observe($("#cvwrap"));
+  resizeDataCanvas();
+  if (new URLSearchParams(location.search).get("test") === "1") runSelfTests();
+}
+init();
 </script>
 </body>
 </html>
